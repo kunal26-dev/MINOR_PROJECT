@@ -1,0 +1,21 @@
+# Local environment and credentials
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+id_rsa
+
+# Dependencies and build output
+**/node_modules/
+**/dist/
+**/build/
+
+# Local database files and logs
+.mongodb-data/
+**/.mongodb-data/
+.mongodb.log*
+*.log
+
+# Uploaded user content
+**/uploads/
