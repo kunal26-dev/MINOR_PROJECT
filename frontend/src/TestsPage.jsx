@@ -253,20 +253,24 @@ export default function TestsPage({ token, user, subjects, onUnauthorized }) {
 
       {loading ? <div className="resource-skeletons"><div className="resource-skeleton" /><div className="resource-skeleton" /></div> : tests.length ? (
         <div className="test-card-list">
-          {tests.map((test) => (
-            <article className="test-card card-panel" key={test._id}>
-              <div className="test-card-icon"><ClipboardList size={20} /></div>
-              <div className="test-card-main">
-                <span className="section-kicker">{test.subject?.subjectName || 'GENERAL'}</span>
-                <h3>{test.title}</h3>
-                <p>{test.description || 'Multiple-choice assessment'} · {test.questions.length} questions · up to {test.maxAttempts} {test.maxAttempts === 1 ? 'attempt' : 'attempts'}</p>
-                <small>{test.scheduledAt && new Date(test.scheduledAt) > new Date() ? `Scheduled for ${new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(test.scheduledAt))}` : `Created by ${test.createdBy?.name || 'Teacher'} · ${new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(test.createdAt))}`}</small>
-                {user.role === 'Student' && test.latestAttempt && <div className="test-latest-mark">Latest: {test.latestAttempt.score}/{test.latestAttempt.totalMarks} ({test.latestAttempt.percentage}%) · best {test.bestPercentage}%</div>}
-              </div>
-              {user.role === 'Student' && <button className="button button-primary" disabled={test.attemptsUsed >= test.maxAttempts} onClick={() => startTest(test)}>{test.attemptsUsed >= test.maxAttempts ? 'Attempts used' : test.attemptsUsed ? 'Retake test' : 'Start test'}</button>}
-              {user.role === 'Teacher' && test.createdBy?._id === user._id && <button className="button button-outline" onClick={() => toggleMarks(test)}><BarChart3 size={15} /> View marks</button>}
-            </article>
-          ))}
+          {tests.map((test) => {
+            const isScheduled = test.scheduledAt && new Date(test.scheduledAt) > new Date();
+            const questionCount = test.questionCount ?? test.questions.length;
+            return (
+              <article className="test-card card-panel" key={test._id}>
+                <div className="test-card-icon"><ClipboardList size={20} /></div>
+                <div className="test-card-main">
+                  <span className="section-kicker">{test.subject?.subjectName || 'GENERAL'}</span>
+                  <h3>{test.title}</h3>
+                  <p>{test.description || 'Multiple-choice assessment'} · {questionCount} questions · up to {test.maxAttempts} {test.maxAttempts === 1 ? 'attempt' : 'attempts'}</p>
+                  <small>{isScheduled ? `Scheduled for ${new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(test.scheduledAt))}` : `Created by ${test.createdBy?.name || 'Teacher'} · ${new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(test.createdAt))}`}</small>
+                  {user.role === 'Student' && test.latestAttempt && <div className="test-latest-mark">Latest: {test.latestAttempt.score}/{test.latestAttempt.totalMarks} ({test.latestAttempt.percentage}%) · best {test.bestPercentage}%</div>}
+                </div>
+                {user.role === 'Student' && <button className="button button-primary" disabled={isScheduled || test.attemptsUsed >= test.maxAttempts} onClick={() => startTest(test)}>{isScheduled ? 'Scheduled' : test.attemptsUsed >= test.maxAttempts ? 'Attempts used' : test.attemptsUsed ? 'Retake test' : 'Start test'}</button>}
+                {user.role === 'Teacher' && test.createdBy?._id === user._id && <button className="button button-outline" onClick={() => toggleMarks(test)}><BarChart3 size={15} /> View marks</button>}
+              </article>
+            );
+          })}
         </div>
       ) : <div className="empty-state card-panel"><div className="empty-icon"><ClipboardList size={23} /></div><h3>No tests available yet</h3><p>{user.role === 'Teacher' ? 'Create a weekly MCQ test for your students.' : 'Teacher-created tests will appear here.'}</p></div>}
     </div>

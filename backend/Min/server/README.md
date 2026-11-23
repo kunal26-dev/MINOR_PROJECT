@@ -168,7 +168,7 @@ Example: `GET /api/resources?search=binary tree&semester=3&fileType=pdf&sort=old
 ### `/api/tests`
 | Method | Path | Access | Purpose |
 |---|---|---|---|
-| GET | `/` | 🔑 | Published MCQ tests; students also receive attempt counts and latest marks |
+| GET | `/` | 🔑 | Published MCQ tests for the student's semester; future tests are listed without questions until available |
 | POST | `/` | Teacher | Create and publish a test with questions, answer keys, marks and attempt limit |
 | GET | `/my-attempts` | Student | List personal test marks |
 | POST | `/:id/attempts` | Student | Submit answers; server scores automatically and returns explanations |

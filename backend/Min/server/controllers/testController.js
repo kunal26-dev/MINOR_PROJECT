@@ -76,19 +76,45 @@ const createTest = asyncHandler(async (req, res) => {
   );
 });
 
-const getTests = asyncHandler(async (req, res) => {
-  const subjectIds = await getStudentSubjectIds(req.user);
+const serializeTestForList = (test, role, summary, now = new Date()) => {
+  const serialized = test.toJSON();
+  const isAvailable = !test.scheduledAt || test.scheduledAt <= now;
+  const latestAttempt = summary?.attempts[0];
+  return {
+    ...serialized,
+    questions: role === 'Student' && !isAvailable ? [] : serialized.questions,
+    questionCount: test.questions.length,
+    isAvailable,
+    attemptsUsed: summary?.attempts.length || 0,
+    bestPercentage: summary?.bestPercentage || 0,
+    latestAttempt: latestAttempt ? {
+      score: latestAttempt.score,
+      totalMarks: latestAttempt.totalMarks,
+      percentage: latestAttempt.percentage,
+      attemptNumber: latestAttempt.attemptNumber,
+      createdAt: latestAttempt.createdAt,
+    } : null,
+  };
+};
+
+const buildTestFilter = (user, subjectIds, now = new Date()) => {
   const testFilter = { isPublished: true };
-  if (req.user.role === 'Teacher') {
+  if (user.role === 'Teacher') {
     testFilter.$or = [
       { scheduledAt: null },
-      { scheduledAt: { $lte: new Date() } },
-      { createdBy: req.user._id },
+      { scheduledAt: { $lte: now } },
+      { createdBy: user._id },
     ];
-  } else {
-    testFilter.$or = [{ scheduledAt: null }, { scheduledAt: { $lte: new Date() } }];
+  } else if (user.role !== 'Student') {
+    testFilter.$or = [{ scheduledAt: null }, { scheduledAt: { $lte: now } }];
   }
   if (subjectIds) testFilter.subject = { $in: subjectIds };
+  return testFilter;
+};
+
+const getTests = asyncHandler(async (req, res) => {
+  const subjectIds = await getStudentSubjectIds(req.user);
+  const testFilter = buildTestFilter(req.user, subjectIds);
   const tests = await Test.find(testFilter)
     .sort({ createdAt: -1 })
     .limit(100)
@@ -106,22 +132,10 @@ const getTests = asyncHandler(async (req, res) => {
     existing.bestPercentage = Math.max(existing.bestPercentage, attempt.percentage);
     attemptsByTest.set(key, existing);
   });
-  const results = tests.map((test) => {
-    const summary = attemptsByTest.get(String(test._id));
-    const latestAttempt = summary?.attempts[0];
-    return {
-      ...test.toJSON(),
-      attemptsUsed: summary?.attempts.length || 0,
-      bestPercentage: summary?.bestPercentage || 0,
-      latestAttempt: latestAttempt ? {
-        score: latestAttempt.score,
-        totalMarks: latestAttempt.totalMarks,
-        percentage: latestAttempt.percentage,
-        attemptNumber: latestAttempt.attemptNumber,
-        createdAt: latestAttempt.createdAt,
-      } : null,
-    };
-  });
+  const now = new Date();
+  const results = tests.map((test) =>
+    serializeTestForList(test, req.user.role, attemptsByTest.get(String(test._id)), now)
+  );
   sendSuccess(res, 200, 'Tests retrieved successfully', { tests: results });
 });
 
@@ -242,4 +256,12 @@ const getTestMarks = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { createTest, getTests, getMyTestAttempts, submitAttempt, getTestMarks };
+module.exports = {
+  createTest,
+  getTests,
+  getMyTestAttempts,
+  submitAttempt,
+  getTestMarks,
+  serializeTestForList,
+  buildTestFilter,
+};
