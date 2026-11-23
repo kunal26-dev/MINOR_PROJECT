@@ -498,6 +498,8 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadSubjects, setUploadSubjects] = useState([]);
+  const [uploadCategories, setUploadCategories] = useState([]);
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
   const [resources, setResources] = useState([]);
@@ -523,6 +525,24 @@ export default function App() {
   useEffect(() => {
     setCurrentPage(1);
   }, [page, search, filters.subject, filters.category, filters.semester, filters.fileType, filters.status]);
+
+  useEffect(() => {
+    if (!token || !uploadOpen) return;
+    let active = true;
+    Promise.all([
+      apiRequest('/subjects', { token }),
+      apiRequest('/categories', { token }),
+    ])
+      .then(([subjectData, categoryData]) => {
+        if (!active) return;
+        setUploadSubjects(subjectData.subjects || []);
+        setUploadCategories(categoryData.categories || []);
+      })
+      .catch((requestError) => {
+        if (active) setError(getErrorMessage(requestError));
+      });
+    return () => { active = false; };
+  }, [token, uploadOpen]);
 
   useEffect(() => {
     if (!token) {
@@ -820,7 +840,7 @@ export default function App() {
         <footer className="main-footer"><span>© {new Date().getFullYear()} StudySpace</span><span>Learn together, go further.</span></footer>
       </main>
 
-      {uploadOpen && <UploadDialog subjects={subjects} categories={categories} user={user} onClose={() => setUploadOpen(false)} onSubmit={submitUpload} busy={uploading} />}
+      {uploadOpen && <UploadDialog subjects={uploadSubjects} categories={uploadCategories} user={user} onClose={() => setUploadOpen(false)} onSubmit={submitUpload} busy={uploading} />}
       {toast && <div className="toast"><span className="toast-check"><Check size={14} /></span>{toast}<button onClick={() => setToast('')} aria-label="Dismiss notification"><X size={15} /></button></div>}
     </div>
   );
