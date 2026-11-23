@@ -19,9 +19,9 @@ Set these values in Render's environment configuration; do not commit them:
 
 - `MONGO_URI`: the MongoDB Atlas connection string. Allow Render's outbound connections in the Atlas network access settings.
 - `CLIENT_URL`: the exact Vercel production origin, such as `https://<project>.vercel.app` (no `/api`).
-- `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`: values for the seeded administrator. Keep the password private and use at least 8 characters.
+- `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`: values for the administrator created during API startup. Keep the password private and use at least 8 characters.
 
-Render generates `JWT_SECRET`. Once the service is live, run `npm run seed` from the backend service shell to create the administrator, categories, and semester subjects. Check `GET /api/health` on the Render service to confirm its API and database connection.
+Render generates `JWT_SECRET`. On every API startup, the service safely creates any missing administrator, categories, and semester subjects. If you need to rerun seeding manually, run `npm run seed` from the backend service shell. Check `GET /api/health` on the Render service to confirm its API and database connection.
 
 ## Free-tier limitations
 

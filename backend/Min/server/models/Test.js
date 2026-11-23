@@ -40,6 +40,7 @@ const testSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true, minlength: 3, maxlength: 150 },
     description: { type: String, trim: true, maxlength: 1000, default: '' },
     subject: { type: mongoose.Schema.Types.ObjectId, ref: 'Subject', required: true },
+    scheduledAt: { type: Date, default: null },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     questions: {
       type: [questionSchema],

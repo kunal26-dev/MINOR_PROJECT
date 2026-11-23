@@ -5,6 +5,7 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 
 const connectDB = require('./config/db');
+const { seedDatabase } = require('./scripts/seed');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
 const authRoutes = require('./routes/authRoutes');
@@ -67,8 +68,10 @@ const startServer = async () => {
   }
   try {
     await connectDB();
+    await seedDatabase();
+    console.log('Seed data is ready.');
   } catch (err) {
-    console.error(`Database connection failed: ${err.message}`);
+    console.error(`Database startup failed: ${err.message}`);
     process.exit(1);
   }
 

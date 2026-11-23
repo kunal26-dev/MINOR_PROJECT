@@ -13,10 +13,15 @@ const validateTestInput = (body) => {
   const description = body.description === undefined ? '' : body.description;
   const safeDescription = isString(description) ? description.trim() : '';
   const maxAttempts = body.maxAttempts === undefined ? 1 : body.maxAttempts;
+  const scheduledAt = body.scheduledAt === undefined || body.scheduledAt === null || body.scheduledAt === ''
+    ? null
+    : new Date(body.scheduledAt);
 
   if (title.length < 3 || title.length > 150) errors.push('Title must be between 3 and 150 characters');
   if (!isString(description) || description.length > 1000) errors.push('Description must be text of at most 1000 characters');
   if (!isValidObjectId(body.subject)) errors.push('A valid subject id is required');
+  if (scheduledAt && Number.isNaN(scheduledAt.getTime())) errors.push('Choose a valid test schedule date and time');
+  if (scheduledAt && scheduledAt.getTime() <= Date.now()) errors.push('Schedule the test for a future date and time');
   if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 20) {
     errors.push('Maximum attempts must be a whole number between 1 and 20');
   }
@@ -49,7 +54,7 @@ const validateTestInput = (body) => {
 
   return {
     errors,
-    values: { title, description: safeDescription, subject: body.subject, maxAttempts, questions },
+    values: { title, description: safeDescription, subject: body.subject, maxAttempts, questions, scheduledAt },
   };
 };
 
@@ -63,12 +68,26 @@ const createTest = asyncHandler(async (req, res) => {
     { path: 'subject', select: 'subjectName subjectCode' },
     { path: 'createdBy', select: 'name role' },
   ]);
-  sendSuccess(res, 201, 'Test created and published successfully', { test });
+  sendSuccess(
+    res,
+    201,
+    values.scheduledAt ? 'Test scheduled successfully' : 'Test created and published successfully',
+    { test }
+  );
 });
 
 const getTests = asyncHandler(async (req, res) => {
   const subjectIds = await getStudentSubjectIds(req.user);
   const testFilter = { isPublished: true };
+  if (req.user.role === 'Teacher') {
+    testFilter.$or = [
+      { scheduledAt: null },
+      { scheduledAt: { $lte: new Date() } },
+      { createdBy: req.user._id },
+    ];
+  } else {
+    testFilter.$or = [{ scheduledAt: null }, { scheduledAt: { $lte: new Date() } }];
+  }
   if (subjectIds) testFilter.subject = { $in: subjectIds };
   const tests = await Test.find(testFilter)
     .sort({ createdAt: -1 })
@@ -131,6 +150,7 @@ const getMyTestAttempts = asyncHandler(async (req, res) => {
 const submitAttempt = asyncHandler(async (req, res) => {
   const test = await Test.findOne({ _id: req.params.id, isPublished: true });
   if (!test) throw new AppError('Test not found', 404);
+  if (test.scheduledAt && test.scheduledAt > new Date()) throw new AppError('This test is scheduled and is not available yet', 409);
   if (req.user.role === 'Student') {
     if (!Number.isInteger(req.user.semester) || !(await Subject.exists({ _id: test.subject, semester: req.user.semester }))) {
       throw new AppError('Test not found', 404);

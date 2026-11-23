@@ -196,12 +196,17 @@ const seedSubjects = async () => {
   }
 };
 
-(async () => {
+const seedDatabase = async () => {
+  await seedAdmin();
+  await seedCategories();
+  await seedSubjects();
+};
+
+if (require.main === module) {
+  (async () => {
   try {
     await connectDB();
-    await seedAdmin();
-    await seedCategories();
-    await seedSubjects();
+    await seedDatabase();
     console.log('Seeding finished.');
     await mongoose.disconnect();
     process.exit(0);
@@ -210,4 +215,7 @@ const seedSubjects = async () => {
     await mongoose.disconnect().catch(() => {});
     process.exit(1);
   }
-})();
+  })();
+}
+
+module.exports = { seedDatabase };

@@ -341,12 +341,12 @@ function UploadDialog({ subjects, categories, user, onClose, onSubmit, busy }) {
           <label htmlFor="resource-description">Description</label>
           <textarea id="resource-description" name="description" rows="3" required maxLength="2000" placeholder="What will someone learn from this resource?" />
           <div className="form-grid">
-            <div><label htmlFor="resource-subject">Subject</label><select id="resource-subject" name="subject" required value={selectedSubject} onChange={(event) => setSelectedSubject(event.target.value)} disabled={!availableSubjects.length}><option value="" disabled>Select subject</option>{availableSubjects.map((subject) => <option key={subject._id} value={subject._id}>{subject.subjectName} {subject.subjectCode ? `(${subject.subjectCode})` : ''}</option>)}</select></div>
+            <div><label htmlFor="resource-subject">Subject</label><select id="resource-subject" name="subject" required value={selectedSubject} onChange={(event) => setSelectedSubject(event.target.value)} disabled={!availableSubjects.length}><option value="" disabled>{availableSubjects.length ? 'Select subject' : 'No subjects for this semester'}</option>{availableSubjects.map((subject) => <option key={subject._id} value={subject._id}>{subject.subjectName} {subject.subjectCode ? `(${subject.subjectCode})` : ''}</option>)}</select></div>
             <div><label htmlFor="resource-category">Category</label><select id="resource-category" name="category" required defaultValue=""><option value="" disabled>Select category</option>{categories.map((category) => <option key={category._id} value={category._id}>{category.categoryName}</option>)}</select></div>
           </div>
           <div className="form-grid">
             {user.role === 'Student' ? (
-              <input type="hidden" name="semester" value={user.semester || ''} />
+              <div><label htmlFor="resource-student-semester">Semester</label><input id="resource-student-semester" type="text" value={user.semester ? `Semester ${user.semester} (from your profile)` : 'Choose your semester in your profile'} readOnly /><input type="hidden" name="semester" value={user.semester || ''} /></div>
             ) : (
               <div><label htmlFor="resource-semester">Semester</label><select id="resource-semester" name="semester" required value={semester} onChange={(event) => { setSemester(event.target.value); setSelectedSubject(''); }}><option value="">Select semester</option>{Array.from({ length: 8 }, (_, index) => <option key={index + 1} value={index + 1}>Semester {index + 1}</option>)}</select></div>
             )}

@@ -9,6 +9,10 @@ const blankQuestion = () => ({
   marks: 1,
   explanation: '',
 });
+const localDateTimeMin = () => {
+  const local = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+};
 const formatDate = (value) => new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(value));
 
 export default function TestsPage({ token, user, subjects, onUnauthorized }) {
@@ -18,7 +22,7 @@ export default function TestsPage({ token, user, subjects, onUnauthorized }) {
   const [answers, setAnswers] = useState([]);
   const [result, setResult] = useState(null);
   const [creating, setCreating] = useState(false);
-  const [draft, setDraft] = useState({ title: '', description: '', subject: '', maxAttempts: 1, questions: [blankQuestion()] });
+  const [draft, setDraft] = useState({ title: '', description: '', subject: '', scheduledAt: '', maxAttempts: 1, questions: [blankQuestion()] });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -30,7 +34,9 @@ export default function TestsPage({ token, user, subjects, onUnauthorized }) {
       onUnauthorized();
       return;
     }
-    setError(requestError.message || 'Something went wrong. Please try again.');
+    setError(requestError.details?.length
+      ? `${requestError.message}: ${requestError.details.join(', ')}`
+      : requestError.message || 'Something went wrong. Please try again.');
   }
 
   async function loadTests() {
@@ -81,6 +87,7 @@ export default function TestsPage({ token, user, subjects, onUnauthorized }) {
         method: 'POST',
         body: {
           ...draft,
+          scheduledAt: draft.scheduledAt ? new Date(draft.scheduledAt).toISOString() : null,
           maxAttempts: Number(draft.maxAttempts),
           questions: draft.questions.map((question) => ({
             ...question,
@@ -89,9 +96,11 @@ export default function TestsPage({ token, user, subjects, onUnauthorized }) {
           })),
         },
       });
-      setDraft({ title: '', description: '', subject: '', maxAttempts: 1, questions: [blankQuestion()] });
+      setDraft({ title: '', description: '', subject: '', scheduledAt: '', maxAttempts: 1, questions: [blankQuestion()] });
       setCreating(false);
-      setMessage('Your MCQ test is published and ready for students.');
+      setMessage(draft.scheduledAt
+        ? `Your MCQ test is scheduled for ${new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(draft.scheduledAt))}.`
+        : 'Your MCQ test is published and ready for students.');
       await loadTests();
     } catch (requestError) {
       showError(requestError);
@@ -218,6 +227,7 @@ export default function TestsPage({ token, user, subjects, onUnauthorized }) {
             <label>Subject<select required value={draft.subject} onChange={(event) => setDraft((current) => ({ ...current, subject: event.target.value }))}><option value="">Choose subject</option>{subjects.map((subject) => <option value={subject._id} key={subject._id}>{subject.subjectName}</option>)}</select></label>
             <label>Attempts per student<input type="number" min="1" max="20" required value={draft.maxAttempts} onChange={(event) => setDraft((current) => ({ ...current, maxAttempts: event.target.value }))} /></label>
           </div>
+          <label>Schedule for later<input type="datetime-local" min={localDateTimeMin()} value={draft.scheduledAt} onChange={(event) => setDraft((current) => ({ ...current, scheduledAt: event.target.value }))} /><small>Leave blank to publish and make the test available immediately.</small></label>
           {draft.questions.map((question, index) => (
             <fieldset className="question-editor" key={index}>
               <div className="question-editor-heading"><legend>Question {index + 1}</legend>{draft.questions.length > 1 && <button type="button" className="text-button danger-text" onClick={() => setDraft((current) => ({ ...current, questions: current.questions.filter((_, questionIndex) => questionIndex !== index) }))}><Trash2 size={14} /> Remove</button>}</div>
@@ -236,7 +246,7 @@ export default function TestsPage({ token, user, subjects, onUnauthorized }) {
           ))}
           <div className="test-form-actions">
             <button type="button" className="button button-outline" onClick={() => setDraft((current) => ({ ...current, questions: [...current.questions, blankQuestion()] }))}><Plus size={15} /> Add question</button>
-            <button type="submit" className="button button-primary" disabled={busy || !subjects.length}>{busy ? 'Publishing…' : <><Check size={15} /> Publish test</>}</button>
+            <button type="submit" className="button button-primary" disabled={busy || !subjects.length}>{busy ? 'Saving…' : <><Check size={15} /> {draft.scheduledAt ? 'Schedule test' : 'Publish test'}</>}</button>
           </div>
         </form>
       )}
@@ -250,7 +260,7 @@ export default function TestsPage({ token, user, subjects, onUnauthorized }) {
                 <span className="section-kicker">{test.subject?.subjectName || 'GENERAL'}</span>
                 <h3>{test.title}</h3>
                 <p>{test.description || 'Multiple-choice assessment'} · {test.questions.length} questions · up to {test.maxAttempts} {test.maxAttempts === 1 ? 'attempt' : 'attempts'}</p>
-                <small>Created by {test.createdBy?.name || 'Teacher'} · {new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(test.createdAt))}</small>
+                <small>{test.scheduledAt && new Date(test.scheduledAt) > new Date() ? `Scheduled for ${new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(test.scheduledAt))}` : `Created by ${test.createdBy?.name || 'Teacher'} · ${new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(test.createdAt))}`}</small>
                 {user.role === 'Student' && test.latestAttempt && <div className="test-latest-mark">Latest: {test.latestAttempt.score}/{test.latestAttempt.totalMarks} ({test.latestAttempt.percentage}%) · best {test.bestPercentage}%</div>}
               </div>
               {user.role === 'Student' && <button className="button button-primary" disabled={test.attemptsUsed >= test.maxAttempts} onClick={() => startTest(test)}>{test.attemptsUsed >= test.maxAttempts ? 'Attempts used' : test.attemptsUsed ? 'Retake test' : 'Start test'}</button>}
