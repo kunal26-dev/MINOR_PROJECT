@@ -11,6 +11,8 @@ import {
   CircleHelp,
   Clock3,
   ClipboardList,
+  Eye,
+  EyeOff,
   FileText,
   Filter,
   GraduationCap,
@@ -65,6 +67,7 @@ function AuthScreen({ onAuthenticated, notice }) {
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'Student', semester: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
 
@@ -143,7 +146,19 @@ function AuthScreen({ onAuthenticated, notice }) {
               <label htmlFor="password">Password</label>
               {mode === 'login' && <span>At least 8 characters</span>}
             </div>
-            <input id="password" type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength="8" required value={form.password} onChange={update('password')} placeholder="••••••••••" />
+            <div className="auth-password-field">
+              <input id="password" type={showPassword ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength="8" required value={form.password} onChange={update('password')} placeholder="••••••••••" />
+              <button
+                className="auth-password-toggle"
+                type="button"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-controls="password"
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((visible) => !visible)}
+              >
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </div>
             {mode === 'register' && (
               <>
                 <label htmlFor="role">I’m joining as a</label>
