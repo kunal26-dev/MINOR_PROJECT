@@ -1,12 +1,14 @@
 // Usage: npm run seed
 // Safe to run repeatedly: known legacy subjects are updated in place, preserving their IDs.
 require('dotenv').config();
+const fs = require('fs');
 const mongoose = require('mongoose');
 const connectDB = require('../config/db');
 const User = require('../models/User');
 const Category = require('../models/Category');
 const Subject = require('../models/Subject');
 const Resource = require('../models/Resource');
+const { ensureUploadDir, resolveUploadPath } = require('../utils/fileHelpers');
 
 const DEFAULT_CATEGORIES = [
   { categoryName: 'Notes', description: 'Lecture notes and handwritten notes' },
@@ -128,6 +130,76 @@ const SAMPLE_SUBJECTS = SEMESTER_SUBJECTS.flatMap((subjects, semesterIndex) =>
   }))
 );
 
+const DEMO_SUBJECTS = [5, 6, 7, 8].flatMap((semester, semesterIndex) =>
+  SAMPLE_SUBJECTS.filter((subject) => subject.semester === semester)
+    .slice(0, semesterIndex === 3 ? 3 : 4)
+);
+
+const escapePdfText = (text) =>
+  String(text)
+    .replace(/[^\x20-\x7E]/g, '?')
+    .replace(/([\\()])/g, '\\$1');
+
+const wrapPdfText = (text, maxLength = 72) => {
+  const words = String(text).split(/\s+/);
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    if (line && `${line} ${word}`.length > maxLength) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = line ? `${line} ${word}` : word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+};
+
+const createDemoPdf = (subject, index) => {
+  const lines = [
+    `Demo Sample Resource ${String(index).padStart(2, '0')}`,
+    `Subject: ${subject.subjectName}`,
+    `Semester: ${subject.semester}`,
+    '',
+    'Study notes preview for interface testing.',
+    ...wrapPdfText(subject.description),
+    '',
+    'This synthetic PDF was generated for Smart Notes Finder demo data.',
+  ];
+  const stream = [
+    'BT',
+    '/F1 14 Tf',
+    '50 750 Td',
+    ...lines.flatMap((line, lineIndex) => [
+      ...(lineIndex ? ['0 -24 Td'] : []),
+      `(${escapePdfText(line)}) Tj`,
+    ]),
+    'ET',
+  ].join('\n');
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    `<< /Length ${Buffer.byteLength(stream, 'ascii')} >>\nstream\n${stream}\nendstream`,
+  ];
+
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(Buffer.byteLength(pdf, 'ascii'));
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xrefOffset = Buffer.byteLength(pdf, 'ascii');
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const offset of offsets.slice(1)) {
+    pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  return Buffer.from(pdf, 'ascii');
+};
+
 const seedAdmin = async () => {
   const { ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD } = process.env;
   if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
@@ -196,10 +268,59 @@ const seedSubjects = async () => {
   }
 };
 
+const seedDemoResources = async () => {
+  const uploader = await User.findOne({ role: 'Admin', accountStatus: 'Active' }).sort({ createdAt: 1 });
+  if (!uploader) {
+    console.warn('! Demo resources not seeded: no active admin account exists');
+    return;
+  }
+
+  const category = await Category.findOne({ categoryName: 'Study Materials' });
+  if (!category) throw new Error('Demo resources require the Study Materials category');
+  ensureUploadDir();
+
+  for (const [index, subject] of DEMO_SUBJECTS.entries()) {
+    const sequence = String(index + 1).padStart(2, '0');
+    const marker = `demo-seed-${sequence}`;
+    const storedFileName = `${marker}-${subject.subjectCode.toLowerCase()}.pdf`;
+    const originalFileName = `Demo_${sequence}_${subject.subjectCode}.pdf`;
+    const subjectRecord = await Subject.findOne({ subjectCode: subject.subjectCode });
+    if (!subjectRecord) throw new Error(`Demo subject is missing: ${subject.subjectCode}`);
+    const pdf = createDemoPdf(subject, index + 1);
+    await fs.promises.writeFile(resolveUploadPath(storedFileName), pdf);
+
+    const values = {
+      title: `Demo: ${subject.subjectName} sample notes`,
+      description: `Synthetic sample PDF for ${subject.subjectName}, semester ${subject.semester}.`,
+      subject: subjectRecord._id,
+      semester: subject.semester,
+      category: category._id,
+      tags: ['demo', 'sample', marker],
+      originalFileName,
+      storedFileName,
+      filePath: `uploads/${storedFileName}`,
+      fileType: 'pdf',
+      fileSize: pdf.length,
+      uploadedBy: uploader._id,
+      status: 'Approved',
+    };
+
+    const resource = await Resource.findOne({ tags: marker });
+    if (resource) {
+      Object.assign(resource, values);
+      await resource.save();
+    } else {
+      await Resource.create(values);
+    }
+    console.log(`~ Seeded demo PDF: ${subject.subjectCode} ${subject.subjectName}`);
+  }
+};
+
 const seedDatabase = async () => {
   await seedAdmin();
   await seedCategories();
   await seedSubjects();
+  await seedDemoResources();
 };
 
 if (require.main === module) {
@@ -218,4 +339,4 @@ if (require.main === module) {
   })();
 }
 
-module.exports = { seedDatabase };
+module.exports = { seedDatabase, createDemoPdf, DEMO_SUBJECTS };

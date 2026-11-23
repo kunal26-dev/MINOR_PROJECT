@@ -72,7 +72,7 @@ Generate a secret with: `node -e "console.log(require('crypto').randomBytes(48).
 ```
 npm run seed
 ```
-Creates the admin from `ADMIN_*` env vars (password hashed), the 8 default categories and the semester 1-8 subject catalog. It safely updates the known legacy subject records in place (preserving IDs/references) and synchronizes their resources' semester values.
+Creates the admin from `ADMIN_*` env vars (password hashed), the 8 default categories and the semester 1-8 subject catalog. It safely updates the known legacy subject records in place (preserving IDs/references) and synchronizes their resources' semester values. It also creates 15 clearly labeled, synthetic, approved PDF resources across semesters 5-8 for dashboard previews; repeated runs update these same demo records instead of duplicating them. The server runs this seed automatically at startup.
 
 ## 8. Run the server
 

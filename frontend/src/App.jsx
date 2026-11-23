@@ -310,7 +310,7 @@ function UploadDialog({ subjects, categories, user, onClose, onSubmit, busy }) {
   const [file, setFile] = useState(null);
   const [semester, setSemester] = useState(user.role === 'Student' ? String(user.semester || '') : '');
   const [selectedSubject, setSelectedSubject] = useState('');
-  const availableSubjects = subjects.filter((subject) => subject.semester === Number(semester));
+  const availableSubjects = subjects.filter((subject) => Number(subject.semester) === Number(semester));
 
   async function submit(event) {
     event.preventDefault();
