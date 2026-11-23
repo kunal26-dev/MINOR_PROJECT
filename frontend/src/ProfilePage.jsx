@@ -7,7 +7,7 @@ const formatDate = (value) => value
   ? new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(value))
   : 'today';
 
-export default function ProfilePage({ token, user, onUserUpdate, onLogout, onUnauthorized }) {
+export default function ProfilePage({ token, user, onUserUpdate, onLogout, onUnauthorized, onOpenTests }) {
   const [profileForm, setProfileForm] = useState({
     name: user.name,
     email: user.email,
@@ -19,6 +19,7 @@ export default function ProfilePage({ token, user, onUserUpdate, onLogout, onUna
   const [subjects, setSubjects] = useState([]);
   const [progress, setProgress] = useState([]);
   const [report, setReport] = useState(null);
+  const [availableTests, setAvailableTests] = useState([]);
   const [marks, setMarks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -38,15 +39,16 @@ export default function ProfilePage({ token, user, onUserUpdate, onLogout, onUna
     setLoading(true);
     setError('');
     try {
-      const requests = [
+      const [dashboard, progressData, testsData, marksData] = await Promise.all([
         apiRequest('/dashboard', { token }),
         apiRequest('/progress', { token }),
-      ];
-      if (user.role === 'Student') requests.push(apiRequest('/tests/my-attempts', { token }));
-      const [dashboard, progressData, marksData] = await Promise.all(requests);
+        user.role === 'Student' ? apiRequest('/tests', { token }) : Promise.resolve(null),
+        user.role === 'Student' ? apiRequest('/tests/my-attempts', { token }) : Promise.resolve(null),
+      ]);
       setSubjects(dashboard.subjects || []);
       setProgress(progressData.progress || []);
       setReport(progressData.report || null);
+      setAvailableTests(testsData?.tests || []);
       setMarks(marksData?.attempts || []);
     } catch (requestError) {
       showError(requestError);
@@ -244,7 +246,34 @@ export default function ProfilePage({ token, user, onUserUpdate, onLogout, onUna
 
       {user.role === 'Student' && (
         <section className="profile-section">
-          <div className="section-heading"><div><span className="section-kicker">ASSESSMENTS</span><h2>Recent test marks</h2></div></div>
+          <div className="section-heading">
+            <div><span className="section-kicker">ASSESSMENTS</span><h2>Published tests</h2></div>
+            <button type="button" className="button button-outline" onClick={onOpenTests}>Open tests</button>
+          </div>
+          {loading ? <p className="muted-copy">Loading published tests…</p> : availableTests.length ? (
+            <div className="test-card-list">
+              {availableTests.slice(0, 5).map((availableTest) => {
+                const isScheduled = availableTest.scheduledAt && new Date(availableTest.scheduledAt) > new Date();
+                return (
+                  <article className="test-card card-panel" key={availableTest._id}>
+                    <div className="test-card-icon"><ClipboardList size={20} /></div>
+                    <div className="test-card-main">
+                      <span className="section-kicker">{availableTest.subject?.subjectName || 'ASSESSMENT'}</span>
+                      <h3>{availableTest.title}</h3>
+                      <p>{availableTest.description || 'Multiple-choice assessment'} · {availableTest.questionCount ?? availableTest.questions.length} questions</p>
+                      <small>{isScheduled
+                        ? `Scheduled for ${new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(availableTest.scheduledAt))}`
+                        : 'Available now'}</small>
+                    </div>
+                    <button type="button" className="button button-outline" onClick={onOpenTests}>View</button>
+                  </article>
+                );
+              })}
+              {availableTests.length > 5 && <button type="button" className="text-button" onClick={onOpenTests}>View all {availableTests.length} tests</button>}
+            </div>
+          ) : <p className="muted-copy">Published tests for your semester will appear here.</p>}
+
+          <div className="section-heading profile-marks-heading"><div><span className="section-kicker">RESULTS</span><h2>Recent test marks</h2></div></div>
           {marks.length ? (
             <div className="marks-list card-panel">
               {marks.slice(0, 5).map((mark) => (

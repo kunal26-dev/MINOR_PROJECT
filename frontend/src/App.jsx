@@ -841,7 +841,7 @@ export default function App() {
             </>
           )}
 
-          {page === 'profile' && <ProfilePage token={token} user={user} onUserUpdate={updateUser} onLogout={signOut} onUnauthorized={signOut} />}
+          {page === 'profile' && <ProfilePage token={token} user={user} onUserUpdate={updateUser} onLogout={signOut} onUnauthorized={signOut} onOpenTests={() => navigateTo('tests')} />}
           {page === 'tests' && <TestsPage token={token} user={user} subjects={subjects} onUnauthorized={signOut} />}
 
           {page === 'overview' && user.role === 'Admin' && adminDashboard && <AdminSummary data={adminDashboard} />}
