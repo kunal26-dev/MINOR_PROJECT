@@ -2,13 +2,15 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createDemoPdf, DEMO_SUBJECTS } = require('./seed');
 
-test('demo PDFs cover semesters 5 through 8 with 15 unique subjects', () => {
-  assert.equal(DEMO_SUBJECTS.length, 15);
+test('demo PDFs cover the first five subjects in every semester', () => {
+  assert.equal(DEMO_SUBJECTS.length, 40);
   assert.deepEqual(
-    [5, 6, 7, 8].map((semester) => DEMO_SUBJECTS.filter((subject) => subject.semester === semester).length),
-    [4, 4, 4, 3]
+    [1, 2, 3, 4, 5, 6, 7, 8].map((semester) =>
+      DEMO_SUBJECTS.filter((subject) => subject.semester === semester).length
+    ),
+    [5, 5, 5, 5, 5, 5, 5, 5]
   );
-  assert.equal(new Set(DEMO_SUBJECTS.map((subject) => subject.subjectCode)).size, 15);
+  assert.equal(new Set(DEMO_SUBJECTS.map((subject) => subject.subjectCode)).size, 40);
 });
 
 test('demo PDFs have a valid header and cross-reference offset', () => {

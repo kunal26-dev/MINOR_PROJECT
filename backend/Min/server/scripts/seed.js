@@ -8,7 +8,7 @@ const User = require('../models/User');
 const Category = require('../models/Category');
 const Subject = require('../models/Subject');
 const Resource = require('../models/Resource');
-const { ensureUploadDir, resolveUploadPath } = require('../utils/fileHelpers');
+const { ensureUploadDir, resolveUploadPath, deleteStoredFile } = require('../utils/fileHelpers');
 
 const DEFAULT_CATEGORIES = [
   { categoryName: 'Notes', description: 'Lecture notes and handwritten notes' },
@@ -130,9 +130,8 @@ const SAMPLE_SUBJECTS = SEMESTER_SUBJECTS.flatMap((subjects, semesterIndex) =>
   }))
 );
 
-const DEMO_SUBJECTS = [5, 6, 7, 8].flatMap((semester, semesterIndex) =>
-  SAMPLE_SUBJECTS.filter((subject) => subject.semester === semester)
-    .slice(0, semesterIndex === 3 ? 3 : 4)
+const DEMO_SUBJECTS = Array.from({ length: 8 }, (_, index) => index + 1).flatMap((semester) =>
+  SAMPLE_SUBJECTS.filter((subject) => subject.semester === semester).slice(0, 5)
 );
 
 const escapePdfText = (text) =>
@@ -286,6 +285,7 @@ const seedDemoResources = async () => {
     const originalFileName = `Demo_${sequence}_${subject.subjectCode}.pdf`;
     const subjectRecord = await Subject.findOne({ subjectCode: subject.subjectCode });
     if (!subjectRecord) throw new Error(`Demo subject is missing: ${subject.subjectCode}`);
+    const resource = await Resource.findOne({ tags: marker });
     const pdf = createDemoPdf(subject, index + 1);
     await fs.promises.writeFile(resolveUploadPath(storedFileName), pdf);
 
@@ -305,10 +305,13 @@ const seedDemoResources = async () => {
       status: 'Approved',
     };
 
-    const resource = await Resource.findOne({ tags: marker });
     if (resource) {
+      const previousFileName = resource.storedFileName;
       Object.assign(resource, values);
       await resource.save();
+      if (previousFileName && previousFileName !== storedFileName) {
+        await deleteStoredFile(previousFileName);
+      }
     } else {
       await Resource.create(values);
     }
