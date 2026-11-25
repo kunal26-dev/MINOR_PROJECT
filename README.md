@@ -2,6 +2,8 @@
 
 Academic resource sharing and study progress app for students and teachers.
 
+Teachers select a semester and subject, then publish one unit at a time, with up to five units and 100 topics per unit. Students see published syllabi for their semester and can check off topics to save their individual progress.
+
 ## Deploy the frontend to Vercel
 
 1. Import `kunal26-dev/MINOR_PROJECT` in Vercel.

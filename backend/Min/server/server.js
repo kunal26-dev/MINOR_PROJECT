@@ -18,6 +18,8 @@ const adminRoutes = require('./routes/adminRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const progressRoutes = require('./routes/progressRoutes');
 const testRoutes = require('./routes/testRoutes');
+const assignmentRoutes = require('./routes/assignmentRoutes');
+const syllabusRoutes = require('./routes/syllabusRoutes');
 
 const app = express();
 
@@ -57,6 +59,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/tests', testRoutes);
+app.use('/api/assignments', assignmentRoutes);
+app.use('/api/syllabi', syllabusRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
@@ -75,7 +79,7 @@ const startServer = async () => {
     process.exit(1);
   }
 
-  const PORT = process.env.PORT || 5000;
+  const PORT = process.env.PORT || 5001;
   app.listen(PORT, () => console.log(`Server running on port ${PORT} (${process.env.NODE_ENV || 'development'})`));
 };
 

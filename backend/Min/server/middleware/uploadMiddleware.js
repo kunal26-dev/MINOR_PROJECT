@@ -45,4 +45,25 @@ const upload = multer({
 // Expects the file in the multipart/form-data field named "file"
 const uploadSingle = upload.single('file');
 
-module.exports = { uploadSingle, maxSizeMb };
+const pdfStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename: (req, file, cb) => cb(null, generateStoredName(file.originalname)),
+});
+
+const pdfFilter = (req, file, cb) => {
+  const ext = getExtension(file.originalname);
+  if (ext !== 'pdf' || file.mimetype !== 'application/pdf') {
+    return cb(new AppError('Only PDF files are allowed', 400));
+  }
+  cb(null, true);
+};
+
+const pdfUpload = multer({
+  storage: pdfStorage,
+  fileFilter: pdfFilter,
+  limits: { fileSize: maxSizeMb * 1024 * 1024, files: 1 },
+});
+
+const uploadPdfSingle = pdfUpload.single('file');
+
+module.exports = { uploadSingle, uploadPdfSingle, maxSizeMb };

@@ -71,3 +71,24 @@ export async function downloadResource(resource, token) {
   link.remove();
   URL.revokeObjectURL(objectUrl);
 }
+
+export async function downloadProtectedPdf(url, token, fallbackName = 'assignment.pdf') {
+  const response = await fetch(`${API_BASE}${url}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.message || `Download failed with status ${response.status}`);
+  }
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  const disposition = response.headers.get('content-disposition') || '';
+  const filename = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+  link.href = objectUrl;
+  link.download = filename || fallbackName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
+}

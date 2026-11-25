@@ -31,6 +31,8 @@ import {
 import { apiRequest, downloadResource } from './api.js';
 import ProfilePage from './ProfilePage.jsx';
 import TestsPage from './TestsPage.jsx';
+import AssignmentsPage from './AssignmentsPage.jsx';
+import SyllabusPage from './SyllabusPage.jsx';
 
 const navigation = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -38,6 +40,8 @@ const navigation = [
   { id: 'saved', label: 'Saved resources', icon: Bookmark },
   { id: 'uploads', label: 'My uploads', icon: UploadCloud },
   { id: 'tests', label: 'Tests', icon: ClipboardList },
+  { id: 'assignments', label: 'Assignments', icon: FileText },
+  { id: 'syllabus', label: 'Syllabus', icon: BookOpen },
 ];
 
 const formatDate = (value) => {
@@ -250,6 +254,8 @@ function Header({ page, user, searchText, setSearchText, onSearch, onMenu, onUpl
     review: ['Review queue', 'Help keep your campus library useful, accurate, and welcoming.'],
     profile: ['My profile', 'Track your learning progress and review your assessment marks.'],
     tests: ['Tests', 'Take teacher-created assessments and track your marks.'],
+    assignments: ['Assignments', 'Upload semester assignments and review student submissions.'],
+    syllabus: ['Syllabus', 'Follow your subject units and track completed topics.'],
   };
   const [title, subtitle] = titles[page] || titles.overview;
 
@@ -587,7 +593,7 @@ export default function App() {
   }, [token]);
 
   useEffect(() => {
-    if (!token || !user || page === 'profile' || page === 'tests') return;
+    if (!token || !user || ['profile', 'tests', 'assignments', 'syllabus'].includes(page)) return;
     let active = true;
     const load = async () => {
       setLoading(true);
@@ -843,6 +849,8 @@ export default function App() {
 
           {page === 'profile' && <ProfilePage token={token} user={user} onUserUpdate={updateUser} onLogout={signOut} onUnauthorized={signOut} onOpenTests={() => navigateTo('tests')} />}
           {page === 'tests' && <TestsPage token={token} user={user} subjects={subjects} onUnauthorized={signOut} />}
+          {page === 'assignments' && <AssignmentsPage token={token} user={user} subjects={subjects} onUnauthorized={signOut} />}
+          {page === 'syllabus' && <SyllabusPage token={token} user={user} subjects={subjects} onUnauthorized={signOut} />}
 
           {page === 'overview' && user.role === 'Admin' && adminDashboard && <AdminSummary data={adminDashboard} />}
           {page === 'overview' && dashboard && (
