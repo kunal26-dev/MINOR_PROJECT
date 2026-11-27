@@ -3,6 +3,13 @@ const Subject = require('../models/Subject');
 const AppError = require('./appError');
 const { isValidObjectId, escapeRegex, parsePagination, buildPagination } = require('./validators');
 
+const SORTS = {
+  newest: { createdAt: -1, _id: -1 },
+  oldest: { createdAt: 1, _id: 1 },
+  semester: { semester: 1, createdAt: -1, _id: -1 },
+  title: { title: 1, _id: 1 },
+};
+
 // Fields populated on every resource response (admins also see the uploader's email)
 const populateOptions = (isAdmin = false) => [
   { path: 'subject', select: 'subjectName subjectCode semester' },
@@ -33,6 +40,7 @@ const objectIdFilter = (value, label) => {
 //   subject, category    : ObjectId
 //   semester             : 1-8
 //   fileType | format    : e.g. pdf, docx
+//   uploader             : uploadedBy ObjectId
 const buildResourceFilter = async (query, baseFilter = {}) => {
   const filter = { ...baseFilter };
 
@@ -45,6 +53,15 @@ const buildResourceFilter = async (query, baseFilter = {}) => {
     }
   }
   if (query.category) filter.category = objectIdFilter(query.category, 'category');
+
+  if (query.uploader) {
+    const uploaderId = objectIdFilter(query.uploader, 'uploader');
+    if (filter.uploadedBy && String(filter.uploadedBy) !== uploaderId) {
+      filter.$and = [...(filter.$and || []), { uploadedBy: uploaderId }];
+    } else {
+      filter.uploadedBy = uploaderId;
+    }
+  }
 
   if (query.semester !== undefined && query.semester !== '') {
     const semester = Number(query.semester);
@@ -84,12 +101,13 @@ const buildResourceFilter = async (query, baseFilter = {}) => {
   return filter;
 };
 
-const getSort = (query) =>
-  query.sort === 'semester'
-    ? { semester: 1, createdAt: -1, _id: -1 }
-    : query.sort === 'oldest' || query.order === 'asc'
-      ? { createdAt: 1, _id: 1 }
-      : { createdAt: -1, _id: -1 };
+const getSort = (query) => {
+  const sort = query.sort || (query.order === 'asc' ? 'oldest' : 'newest');
+  if (typeof sort !== 'string' || !SORTS[sort]) {
+    throw new AppError(`Invalid sort. Use one of: ${Object.keys(SORTS).join(', ')}`, 400);
+  }
+  return SORTS[sort];
+};
 
 // Runs the search/filter/sort/pagination pipeline shared by user and admin endpoints
 const findResources = async (query, baseFilter, isAdmin = false) => {

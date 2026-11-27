@@ -4,6 +4,8 @@ Academic resource sharing and study progress app for students and teachers.
 
 Teachers select a semester and subject, then publish one unit at a time, with up to five units and 100 topics per unit. Students can access published syllabi for their current and earlier semesters, but not future semesters, and check off topics to save their individual progress. The site supports light and dark themes.
 
+Semester access limits are also applied to resources, assignments, and tests. Resource discovery supports semester, subject, file type, uploader, and sort filters. Upload forms show transfer progress, preview selected PDFs, and report size/format errors; password recovery uses expiring email links, and approved resources generate in-app notifications for eligible students.
+
 ## Deploy the frontend to Vercel
 
 1. Import `kunal26-dev/MINOR_PROJECT` in Vercel.
@@ -27,8 +29,11 @@ Set these values in Render's environment configuration; do not commit them:
 - `CLIENT_URL`: allowed frontend origins, comma separated, such as `https://<project>.vercel.app,https://smart-notes-finder-frontend.onrender.com` (no `/api`).
 - `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`: values for the administrator created during API startup. Keep the password private and use at least 8 characters.
 - `FILE_STORAGE_DRIVER=r2`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_BUCKET_NAME`: configure persistent Cloudflare R2 file storage as described below.
+- `PUBLIC_APP_URL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM`: configure password-reset email delivery. Keep SMTP credentials private.
 
 Render generates `JWT_SECRET`. On every API startup, the service safely creates any missing administrator, categories, and semester subjects. If you need to rerun seeding manually, run `npm run seed` from the backend service shell. Check `GET /api/health` on the Render service to confirm its API and database connection.
+
+Password recovery requires SMTP credentials from an email provider. Set them in the Render API service's Environment settings; the password reset link uses `PUBLIC_APP_URL`. In-app notifications are stored in MongoDB and are created when resources are approved.
 
 ### Persistent uploads with Cloudflare R2
 

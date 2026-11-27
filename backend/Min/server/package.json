@@ -10,7 +10,7 @@
     "test": "node --test"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "license": "ISC",
   "dependencies": {
@@ -21,7 +21,8 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.5",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "nodemailer": "^10.6.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"

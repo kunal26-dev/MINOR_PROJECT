@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { validateUnits } = require('./syllabusController');
+const { validateUnits, getSyllabusStudentSemesterLimit } = require('./syllabusController');
 
 const makeUnits = (count) => Array.from({ length: count }, (_, index) => ({
   title: `Unit ${index + 1}`,
@@ -38,4 +38,9 @@ test('syllabus edits preserve existing topic ids and reject unknown ids', () => 
   assert.deepEqual(retained.errors, []);
   assert.equal(retained.units[0].topics[0]._id, topicId);
   assert.match(unknown.errors[0], /invalid topic id/);
+});
+
+test('student syllabus lists stop at the current semester', () => {
+  assert.equal(getSyllabusStudentSemesterLimit({ role: 'Student', semester: 5 }), 5);
+  assert.equal(getSyllabusStudentSemesterLimit({ role: 'Student', semester: 0 }), 0);
 });

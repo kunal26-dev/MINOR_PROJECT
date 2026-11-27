@@ -21,6 +21,7 @@ const progressRoutes = require('./routes/progressRoutes');
 const testRoutes = require('./routes/testRoutes');
 const assignmentRoutes = require('./routes/assignmentRoutes');
 const syllabusRoutes = require('./routes/syllabusRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 
@@ -62,6 +63,7 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/tests', testRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/syllabi', syllabusRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

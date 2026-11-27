@@ -30,7 +30,10 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { apiRequest, downloadResource } from './api.js';
+import { apiRequest, downloadResource, getUploadFileError, uploadRequest } from './api.js';
+import PdfPreview from './PdfPreview.jsx';
+import UploadProgress from './UploadProgress.jsx';
+import NotificationBell from './NotificationBell.jsx';
 import ProfilePage from './ProfilePage.jsx';
 import TestsPage from './TestsPage.jsx';
 import AssignmentsPage from './AssignmentsPage.jsx';
@@ -84,9 +87,11 @@ function ThemeToggle({ theme, onToggleTheme, className = '' }) {
 }
 
 function AuthScreen({ onAuthenticated, notice, theme, onToggleTheme }) {
-  const [mode, setMode] = useState('login');
+  const resetToken = new URLSearchParams(window.location.search).get('resetToken') || '';
+  const [mode, setMode] = useState(resetToken ? 'reset' : 'login');
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'Student', semester: '' });
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -95,21 +100,40 @@ function AuthScreen({ onAuthenticated, notice, theme, onToggleTheme }) {
   async function submit(event) {
     event.preventDefault();
     setError('');
+    setMessage('');
     setBusy(true);
     try {
-      const data = await apiRequest(`/auth/${mode === 'login' ? 'login' : 'register'}`, {
-        method: 'POST',
-        body: mode === 'login'
-          ? { email: form.email, password: form.password }
-          : {
+      if (mode === 'forgot') {
+        const data = await apiRequest('/auth/forgot-password', {
+          method: 'POST',
+          body: { email: form.email },
+        });
+        setMessage(data.message || 'If an active account uses that email, a password reset link will be sent.');
+      } else if (mode === 'reset') {
+        const data = await apiRequest('/auth/reset-password', {
+          method: 'POST',
+          body: { token: resetToken, newPassword: form.password },
+        });
+        localStorage.removeItem('studyspace_token');
+        window.history.replaceState({}, '', window.location.pathname);
+        setMode('login');
+        setForm((current) => ({ ...current, password: '' }));
+        setMessage(data.message || 'Password reset successfully. Please sign in.');
+      } else {
+        const data = await apiRequest(`/auth/${mode === 'login' ? 'login' : 'register'}`, {
+          method: 'POST',
+          body: mode === 'login'
+            ? { email: form.email, password: form.password }
+            : {
             name: form.name,
             email: form.email,
             password: form.password,
             role: form.role,
             ...(form.role === 'Student' ? { semester: Number(form.semester) } : {}),
           },
-      });
-      onAuthenticated(data);
+        });
+        onAuthenticated(data);
+      }
     } catch (requestError) {
       setError(getErrorMessage(requestError));
     } finally {
@@ -144,16 +168,17 @@ function AuthScreen({ onAuthenticated, notice, theme, onToggleTheme }) {
         </div>
         <div className="auth-form-wrap">
           <div className="auth-heading">
-            <span className="auth-kicker">{mode === 'login' ? 'WELCOME BACK' : 'GET STARTED'}</span>
-            <h2>{mode === 'login' ? 'Sign in to your space' : 'Create your account'}</h2>
-            <p>{mode === 'login' ? 'Your next great study session is waiting.' : 'Join your campus learning community.'}</p>
+            <span className="auth-kicker">{mode === 'login' ? 'WELCOME BACK' : mode === 'register' ? 'GET STARTED' : 'ACCOUNT RECOVERY'}</span>
+            <h2>{mode === 'login' ? 'Sign in to your space' : mode === 'register' ? 'Create your account' : mode === 'forgot' ? 'Reset your password' : 'Choose a new password'}</h2>
+            <p>{mode === 'login' ? 'Your next great study session is waiting.' : mode === 'register' ? 'Join your campus learning community.' : mode === 'forgot' ? 'We’ll email you a secure, single-use reset link.' : 'Your reset link is secure and expires after 15 minutes.'}</p>
           </div>
           {notice && <div className="inline-error" role="alert">{notice}</div>}
+          {message && <div className="notice notice-success" role="status">{message}</div>}
 
-          <div className="auth-switch" role="tablist" aria-label="Account options">
-            <button type="button" className={mode === 'login' ? 'selected' : ''} onClick={() => { setMode('login'); setError(''); }}>Sign in</button>
-            <button type="button" className={mode === 'register' ? 'selected' : ''} onClick={() => { setMode('register'); setError(''); }}>Create account</button>
-          </div>
+          {['login', 'register'].includes(mode) && <div className="auth-switch" role="tablist" aria-label="Account options">
+            <button type="button" className={mode === 'login' ? 'selected' : ''} onClick={() => { setMode('login'); setError(''); setMessage(''); }}>Sign in</button>
+            <button type="button" className={mode === 'register' ? 'selected' : ''} onClick={() => { setMode('register'); setError(''); setMessage(''); }}>Create account</button>
+          </div>}
 
           <form className="auth-form" onSubmit={submit}>
             {mode === 'register' && (
@@ -162,25 +187,31 @@ function AuthScreen({ onAuthenticated, notice, theme, onToggleTheme }) {
                 <input id="name" autoComplete="name" minLength="2" required value={form.name} onChange={update('name')} placeholder="e.g. Alex Morgan" />
               </>
             )}
-            <label htmlFor="email">Email address</label>
-            <input id="email" type="email" autoComplete="email" required value={form.email} onChange={update('email')} placeholder="you@university.edu" />
-            <div className="password-label">
-              <label htmlFor="password">Password</label>
-              {mode === 'login' && <span>At least 8 characters</span>}
-            </div>
-            <div className="auth-password-field">
-              <input id="password" type={showPassword ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength="8" required value={form.password} onChange={update('password')} placeholder="••••••••••" />
-              <button
-                className="auth-password-toggle"
-                type="button"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                aria-controls="password"
-                aria-pressed={showPassword}
-                onClick={() => setShowPassword((visible) => !visible)}
-              >
-                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-              </button>
-            </div>
+            {mode !== 'reset' && <>
+              <label htmlFor="email">Email address</label>
+              <input id="email" type="email" autoComplete="email" required value={form.email} onChange={update('email')} placeholder="you@university.edu" />
+            </>}
+            {mode !== 'forgot' && (
+              <>
+                <div className="password-label">
+                  <label htmlFor="password">{mode === 'reset' ? 'New password' : 'Password'}</label>
+                  {mode === 'login' && <span>At least 8 characters</span>}
+                </div>
+                <div className="auth-password-field">
+                  <input id="password" type={showPassword ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength="8" required value={form.password} onChange={update('password')} placeholder="••••••••••" />
+                  <button
+                    className="auth-password-toggle"
+                    type="button"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-controls="password"
+                    aria-pressed={showPassword}
+                    onClick={() => setShowPassword((visible) => !visible)}
+                  >
+                    {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                  </button>
+                </div>
+              </>
+            )}
             {mode === 'register' && (
               <>
                 <label htmlFor="role">I’m joining as a</label>
@@ -207,10 +238,12 @@ function AuthScreen({ onAuthenticated, notice, theme, onToggleTheme }) {
             )}
             {error && <div className="inline-error" role="alert">{error}</div>}
             <button className="button button-primary auth-submit" type="submit" disabled={busy}>
-              {busy ? <span className="spinner" /> : mode === 'login' ? 'Sign in' : 'Create account'}
+              {busy ? <span className="spinner" /> : mode === 'login' ? 'Sign in' : mode === 'register' ? 'Create account' : mode === 'forgot' ? 'Send reset link' : 'Reset password'}
               {!busy && <ArrowRight size={17} />}
             </button>
           </form>
+          {mode === 'login' && <button className="text-button auth-recovery-link" type="button" onClick={() => { setMode('forgot'); setError(''); setMessage(''); }}>Forgot password?</button>}
+          {['forgot', 'reset'].includes(mode) && <button className="text-button auth-recovery-link" type="button" onClick={() => { window.history.replaceState({}, '', window.location.pathname); setMode('login'); setError(''); setMessage(''); }}>Back to sign in</button>}
 
           <div className="auth-footnote"><ShieldCheck size={15} /> Your learning space is private and secure.</div>
         </div>
@@ -263,7 +296,7 @@ function Sidebar({ page, setPage, user, onLogout, open, onClose }) {
   );
 }
 
-function Header({ page, user, searchText, setSearchText, onSearch, onMenu, onUpload, onProfile, theme, onToggleTheme }) {
+function Header({ page, user, token, searchText, setSearchText, onSearch, onMenu, onUpload, onProfile, onSelectResource, theme, onToggleTheme }) {
   const titles = {
     overview: ['Your learning dashboard', 'A little progress adds up. Here’s what’s happening in your space.'],
     discover: ['Discover resources', 'Find the right notes, guides, and study materials for your next session.'],
@@ -283,6 +316,7 @@ function Header({ page, user, searchText, setSearchText, onSearch, onMenu, onUpl
       <div className="page-heading"><h1>{title}</h1><p>{subtitle}</p></div>
       <div className="topbar-actions">
         <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} />
+        <NotificationBell token={token} onSelectResource={onSelectResource} />
         <form className="top-search" onSubmit={onSearch}>
           <Search size={17} />
           <input aria-label="Search resources" value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Search anything..." />
@@ -348,6 +382,7 @@ function ResourceCard({ resource, saved, onBookmark, onDownload, onReview, showS
 function UploadDialog({ subjects, categories, user, onClose, onSubmit, busy }) {
   const [error, setError] = useState('');
   const [file, setFile] = useState(null);
+  const [progress, setProgress] = useState(null);
   const [semester, setSemester] = useState(user.role === 'Student' ? String(user.semester || '') : '');
   const [selectedSubject, setSelectedSubject] = useState('');
   const availableSubjects = subjects.filter((subject) => Number(subject.semester) === Number(semester));
@@ -356,13 +391,14 @@ function UploadDialog({ subjects, categories, user, onClose, onSubmit, busy }) {
     event.preventDefault();
     setError('');
     const formData = new FormData(event.currentTarget);
-    if (!file) {
-      setError('Choose a file to upload.');
+    const fileError = getUploadFileError(file, ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'csv', 'zip']);
+    if (fileError) {
+      setError(fileError);
       return;
     }
     formData.set('file', file);
     try {
-      await onSubmit(formData);
+      await onSubmit(formData, setProgress);
     } catch (submitError) {
       setError(getErrorMessage(submitError));
     }
@@ -392,12 +428,26 @@ function UploadDialog({ subjects, categories, user, onClose, onSubmit, busy }) {
             )}
             <div><label htmlFor="resource-tags">Tags <span className="optional-label">Optional</span></label><input id="resource-tags" name="tags" placeholder="algorithms, exam prep" /></div>
           </div>
-          <label className="file-drop" htmlFor="resource-file">
+          <label
+            className="file-drop"
+            htmlFor="resource-file"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              const droppedFile = event.dataTransfer.files?.[0];
+              if (!droppedFile) return;
+              const fileError = getUploadFileError(droppedFile, ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'csv', 'zip']);
+              setError(fileError);
+              if (!fileError) setFile(droppedFile);
+            }}
+          >
             <UploadCloud size={21} />
             <strong>{file ? file.name : 'Choose a file or drop it here'}</strong>
             <span>PDF, DOC, PPT, XLS, TXT, CSV or ZIP · max 20 MB</span>
-            <input id="resource-file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv,.zip" onChange={(event) => setFile(event.target.files?.[0] || null)} />
+            <input id="resource-file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv,.zip" onChange={(event) => { const selected = event.target.files?.[0] || null; setFile(selected); setError(getUploadFileError(selected, ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'csv', 'zip'])); setProgress(null); }} />
           </label>
+          <PdfPreview file={file} />
+          <UploadProgress value={progress} />
           {error && <div className="inline-error" role="alert">{error}</div>}
           <div className="dialog-footer"><span><ShieldCheck size={15} /> Student and teacher uploads are reviewed before students can access them.</span><button className="button button-primary" type="submit" disabled={busy}>{busy ? <span className="spinner" /> : <><UploadCloud size={16} /> Upload resource</>}</button></div>
         </form>
@@ -498,7 +548,7 @@ function Overview({ dashboard, resources, loading, savedIds, onNavigate, onBookm
   );
 }
 
-function FiltersBar({ filters, setFilters, subjects, categories, page, user, showStatusFilter = true }) {
+function FiltersBar({ filters, setFilters, subjects, categories, uploaders, page, user, showStatusFilter = true }) {
   const statusFilter = showStatusFilter && (page === 'uploads' || page === 'review');
   const update = (key) => (event) => setFilters((current) => ({ ...current, [key]: event.target.value }));
   return (
@@ -507,8 +557,12 @@ function FiltersBar({ filters, setFilters, subjects, categories, page, user, sho
       <div className="filter-controls">
         <select aria-label="Subject" value={filters.subject} onChange={update('subject')}><option value="">All subjects</option>{subjects.map((subject) => <option key={subject._id} value={subject._id}>{subject.subjectName}</option>)}</select>
         <select aria-label="Category" value={filters.category} onChange={update('category')}><option value="">All categories</option>{categories.map((category) => <option key={category._id} value={category._id}>{category.categoryName}</option>)}</select>
-        {user.role !== 'Student' && <select aria-label="Semester" value={filters.semester} onChange={update('semester')}><option value="">Any semester</option>{Array.from({ length: 8 }, (_, index) => <option key={index + 1} value={index + 1}>Semester {index + 1}</option>)}</select>}
+        <select aria-label="Semester" value={filters.semester} onChange={update('semester')}><option value="">Any semester</option>{Array.from({ length: user.role === 'Student' ? (Number.isInteger(user.semester) ? user.semester : 0) : 8 }, (_, index) => <option key={index + 1} value={index + 1}>Semester {index + 1}</option>)}</select>
         <select aria-label="File type" value={filters.fileType} onChange={update('fileType')}><option value="">Any file type</option>{['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'csv', 'zip'].map((type) => <option key={type} value={type}>{type.toUpperCase()}</option>)}</select>
+        {page === 'discover' && <>
+          <select aria-label="Uploader" value={filters.uploader} onChange={update('uploader')}><option value="">Any uploader</option>{uploaders.map((uploader) => <option key={uploader._id} value={uploader._id}>{uploader.name}</option>)}</select>
+          <select aria-label="Sort resources" value={filters.sort} onChange={update('sort')}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="semester">Semester</option><option value="title">Title</option></select>
+        </>}
         {statusFilter && <select aria-label="Status" value={filters.status} onChange={update('status')}><option value="">All statuses</option>{['Pending', 'Approved', 'Rejected'].map((status) => <option key={status} value={status}>{status}</option>)}</select>}
       </div>
       <Filter size={16} className="filter-end-icon" />
@@ -531,16 +585,18 @@ function AdminSummary({ data }) {
 
 export default function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('studyspace_theme') === 'dark' ? 'dark' : 'light');
-  const [token, setToken] = useState(() => localStorage.getItem('studyspace_token'));
+  const resetTokenInUrl = new URLSearchParams(window.location.search).has('resetToken');
+  const [token, setToken] = useState(() => resetTokenInUrl ? null : localStorage.getItem('studyspace_token'));
   const [user, setUser] = useState(null);
   const [page, setPage] = useState('overview');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [booting, setBooting] = useState(Boolean(localStorage.getItem('studyspace_token')));
+  const [booting, setBooting] = useState(!resetTokenInUrl && Boolean(localStorage.getItem('studyspace_token')));
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadSubjects, setUploadSubjects] = useState([]);
   const [uploadCategories, setUploadCategories] = useState([]);
+  const [uploaders, setUploaders] = useState([]);
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
   const [resources, setResources] = useState([]);
@@ -552,7 +608,15 @@ export default function App() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [searchText, setSearchText] = useState('');
   const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState({ subject: '', category: '', semester: '', fileType: '', status: 'Pending' });
+  const [filters, setFilters] = useState({
+    subject: '',
+    category: '',
+    semester: '',
+    fileType: '',
+    uploader: '',
+    sort: 'newest',
+    status: 'Pending',
+  });
 
   const savedIds = useMemo(() => new Set(bookmarks.map((item) => item.resource?._id).filter(Boolean)), [bookmarks]);
   const subjects = dashboard?.subjects || [];
@@ -570,7 +634,7 @@ export default function App() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [page, search, filters.subject, filters.category, filters.semester, filters.fileType, filters.status]);
+  }, [page, search, filters.subject, filters.category, filters.semester, filters.fileType, filters.uploader, filters.sort, filters.status]);
 
   useEffect(() => {
     if (!token || !uploadOpen) return;
@@ -647,6 +711,10 @@ export default function App() {
           if (filters.category) params.set('category', filters.category);
           if (filters.semester) params.set('semester', filters.semester);
           if (filters.fileType) params.set('fileType', filters.fileType);
+          if (page === 'discover') {
+            if (filters.uploader) params.set('uploader', filters.uploader);
+            params.set('sort', filters.sort);
+          }
           let endpoint = '/resources';
           if (page === 'uploads') {
             endpoint = '/resources/my';
@@ -660,10 +728,14 @@ export default function App() {
               params.set('sort', 'semester');
             }
           }
-          const data = await apiRequest(`${endpoint}?${params.toString()}`, { token });
+          const [data, uploaderData] = await Promise.all([
+            apiRequest(`${endpoint}?${params.toString()}`, { token }),
+            page === 'discover' ? apiRequest('/resources/uploaders', { token }) : Promise.resolve(null),
+          ]);
           if (!active) return;
           setResources(data.resources || []);
           setPagination(data.pagination || null);
+          if (uploaderData) setUploaders(uploaderData.uploaders || []);
           if (page === 'review' && user.role === 'Admin') {
             const adminData = await apiRequest('/admin/dashboard', { token });
             if (active) setAdminDashboard(adminData);
@@ -766,10 +838,10 @@ export default function App() {
     }
   }
 
-  async function submitUpload(formData) {
+  async function submitUpload(formData, onProgress) {
     setUploading(true);
     try {
-      const data = await apiRequest('/resources', { token, method: 'POST', body: formData });
+      const data = await uploadRequest('/resources', { token, body: formData, onProgress });
       setUploadOpen(false);
       setFilters((current) => ({ ...current, status: '' }));
       navigateTo('uploads');
@@ -799,6 +871,17 @@ export default function App() {
     }
   }
 
+  function openNotifiedResource(resource) {
+    navigateTo('discover');
+    setSearchText(resource.title || '');
+    setSearch(resource.title || '');
+    setFilters((current) => ({
+      ...current,
+      semester: resource.semester ? String(resource.semester) : '',
+      sort: 'newest',
+    }));
+  }
+
   if (booting) {
     return <main className="boot-screen"><div className="brand-mark"><BookOpen size={22} /></div><span className="spinner" /><p>Getting your space ready…</p></main>;
   }
@@ -819,6 +902,8 @@ export default function App() {
         <Header
           page={page}
           user={user}
+          token={token}
+          onSelectResource={openNotifiedResource}
           searchText={searchText}
           setSearchText={setSearchText}
           onSearch={(event) => { event.preventDefault(); setSearch(searchText.trim()); if (page === 'overview' || page === 'saved') navigateTo('discover'); }}
@@ -852,7 +937,7 @@ export default function App() {
                   <div><span className="section-kicker">{resourceHeading[0]}</span><h2>{resourceHeading[1]}</h2></div>
                   {page === 'uploads' && <button className="button button-primary" onClick={() => setUploadOpen(true)}><Plus size={16} /> Share resource</button>}
                 </div>
-                {page !== 'saved' && <FiltersBar filters={filters} setFilters={(updater) => { setCurrentPage(1); setFilters(updater); }} subjects={subjects} categories={categories} page={page} user={user} showStatusFilter={page !== 'review' || user.role === 'Admin'} />}
+                {page !== 'saved' && <FiltersBar filters={filters} setFilters={(updater) => { setCurrentPage(1); setFilters(updater); }} subjects={subjects} categories={categories} uploaders={uploaders} page={page} user={user} showStatusFilter={page !== 'review' || user.role === 'Admin'} />}
                 <ResourceList
                   resources={resources}
                   loading={loading}

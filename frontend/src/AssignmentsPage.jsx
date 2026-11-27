@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownToLine, Check, ClipboardList, Plus, UploadCloud } from 'lucide-react';
-import { apiRequest, downloadProtectedPdf } from './api.js';
+import { apiRequest, downloadProtectedPdf, getUploadFileError, uploadRequest } from './api.js';
+import PdfPreview from './PdfPreview.jsx';
+import UploadProgress from './UploadProgress.jsx';
 
 const formatDate = (value) => new Intl.DateTimeFormat('en', {
   dateStyle: 'medium',
@@ -16,6 +18,7 @@ export default function AssignmentsPage({ token, user, subjects, onUnauthorized 
   const [uploadFiles, setUploadFiles] = useState({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
@@ -48,8 +51,9 @@ export default function AssignmentsPage({ token, user, subjects, onUnauthorized 
 
   async function createAssignment(event) {
     event.preventDefault();
-    if (!draft.file) {
-      setError('Choose a PDF assignment file.');
+    const fileError = getUploadFileError(draft.file, ['pdf']);
+    if (fileError) {
+      setError(fileError);
       return;
     }
     setBusy(true);
@@ -63,7 +67,7 @@ export default function AssignmentsPage({ token, user, subjects, onUnauthorized 
       formData.append('subject', draft.subject);
       formData.append('deadline', draft.deadline);
       formData.append('file', draft.file);
-      await apiRequest('/assignments', { token, method: 'POST', body: formData });
+      await uploadRequest('/assignments', { token, body: formData, onProgress: setUploadProgress });
       setDraft({ title: '', description: '', semester: '', subject: '', deadline: '', file: null });
       setCreating(false);
       setMessage('Assignment published successfully.');
@@ -72,13 +76,15 @@ export default function AssignmentsPage({ token, user, subjects, onUnauthorized 
       showError(requestError);
     } finally {
       setBusy(false);
+      setUploadProgress(null);
     }
   }
 
   async function submitAssignment(assignment) {
     const file = uploadFiles[assignment._id];
-    if (!file) {
-      setError('Choose a PDF file for this assignment.');
+    const fileError = getUploadFileError(file, ['pdf']);
+    if (fileError) {
+      setError(fileError);
       return;
     }
     setBusy(true);
@@ -87,13 +93,18 @@ export default function AssignmentsPage({ token, user, subjects, onUnauthorized 
     try {
       const formData = new FormData();
       formData.append('file', file);
-      await apiRequest(`/assignments/${assignment._id}/submissions`, { token, method: 'POST', body: formData });
+      await uploadRequest(`/assignments/${assignment._id}/submissions`, {
+        token,
+        body: formData,
+        onProgress: setUploadProgress,
+      });
       setUploadFiles((current) => ({ ...current, [assignment._id]: null }));
       setMessage(`Your PDF submission for "${assignment.title}" was uploaded.`);
     } catch (requestError) {
       showError(requestError);
     } finally {
       setBusy(false);
+      setUploadProgress(null);
     }
   }
 
@@ -162,7 +173,9 @@ export default function AssignmentsPage({ token, user, subjects, onUnauthorized 
           <div className="test-form-grid">
             <label>Deadline<input type="datetime-local" required value={draft.deadline} onChange={(event) => setDraft((current) => ({ ...current, deadline: event.target.value }))} /></label>
           </div>
-          <label>Assignment PDF<input type="file" accept="application/pdf,.pdf" required onChange={(event) => setDraft((current) => ({ ...current, file: event.target.files?.[0] || null }))} /></label>
+          <label>Assignment PDF<input type="file" accept="application/pdf,.pdf" required onChange={(event) => { const file = event.target.files?.[0] || null; setDraft((current) => ({ ...current, file })); setError(getUploadFileError(file, ['pdf'])); }} /></label>
+          <PdfPreview file={draft.file} />
+          <UploadProgress value={uploadProgress} />
           <div className="test-form-actions">
             <button type="submit" className="button button-primary" disabled={busy || !draft.subject}><Check size={15} /> Publish assignment</button>
           </div>
@@ -193,7 +206,9 @@ export default function AssignmentsPage({ token, user, subjects, onUnauthorized 
                         {user.role === 'Teacher' && <button className="button button-outline" type="button" onClick={() => viewSubmissions(assignment)}>Submissions</button>}
                         {user.role === 'Student' && (
                           <div className="assignment-submit">
-                            <input type="file" accept="application/pdf,.pdf" aria-label={`Upload PDF for ${assignment.title}`} onChange={(event) => setUploadFiles((current) => ({ ...current, [assignment._id]: event.target.files?.[0] || null }))} />
+                            <input type="file" accept="application/pdf,.pdf" aria-label={`Upload PDF for ${assignment.title}`} onChange={(event) => { const file = event.target.files?.[0] || null; setUploadFiles((current) => ({ ...current, [assignment._id]: file })); setError(getUploadFileError(file, ['pdf'])); }} />
+                            <PdfPreview file={uploadFiles[assignment._id]} />
+                            <UploadProgress value={uploadProgress} />
                             <button className="button button-primary" type="button" disabled={closed || busy} onClick={() => submitAssignment(assignment)}>
                               <UploadCloud size={15} /> {closed ? 'Closed' : 'Submit PDF'}
                             </button>

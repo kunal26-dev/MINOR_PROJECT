@@ -1,4 +1,5 @@
 const Resource = require('../models/Resource');
+const User = require('../models/User');
 const Subject = require('../models/Subject');
 const Category = require('../models/Category');
 const Bookmark = require('../models/Bookmark');
@@ -15,6 +16,7 @@ const {
 } = require('../utils/fileHelpers');
 const { populateOptions, parseStatus, findResources } = require('../utils/resourceQuery');
 const { getStudentSubjectIds, isSemesterAccessible } = require('../utils/semesterSubjects');
+const { notifyResourcePublished } = require('../utils/resourceNotifications');
 const path = require('path');
 
 const isAdmin = (user) => user.role === 'Admin';
@@ -150,13 +152,18 @@ const uploadResource = asyncHandler(async (req, res) => {
     resourceCreated = true;
 
     await resource.populate(populateOptions(isAdmin(req.user)));
+    const notificationsCreated = resource.status !== 'Approved' || await notifyResourcePublished(resource);
+    const uploadMessage = isAdmin(req.user)
+      ? 'Resource uploaded successfully'
+      : 'Resource uploaded successfully and is awaiting teacher approval';
+    const message = notificationsCreated
+      ? uploadMessage
+      : `${uploadMessage}. Students may not have received notifications; please notify them manually.`;
 
     sendSuccess(
       res,
       201,
-      isAdmin(req.user)
-        ? 'Resource uploaded successfully'
-        : 'Resource uploaded successfully and is awaiting teacher approval',
+      message,
       { resource }
     );
   } catch (err) {
@@ -181,6 +188,21 @@ const getResources = asyncHandler(async (req, res) => {
   }
   const data = await findResources(req.query, baseFilter, false);
   sendSuccess(res, 200, 'Resources retrieved successfully', data);
+});
+
+const getResourceUploaders = asyncHandler(async (req, res) => {
+  const filter = { status: 'Approved' };
+  const subjectIds = await getStudentSubjectIds(req.user);
+  if (subjectIds) {
+    filter.subject = { $in: subjectIds };
+    if (Number.isInteger(req.user.semester)) filter.semester = { $lte: req.user.semester };
+  }
+  const uploaderIds = await Resource.distinct('uploadedBy', filter);
+  const uploaders = await User.find({ _id: { $in: uploaderIds }, accountStatus: 'Active' })
+    .select('name')
+    .sort({ name: 1 })
+    .lean();
+  sendSuccess(res, 200, 'Resource uploaders retrieved successfully', { uploaders });
 });
 
 // GET /api/resources/my  (the logged-in user's uploads, optional ?status=)
@@ -215,8 +237,16 @@ const approveResource = asyncHandler(async (req, res) => {
   resource.status = 'Approved';
   resource.rejectionReason = undefined;
   await resource.save();
+  const notificationsCreated = await notifyResourcePublished(resource);
   await resource.populate(populateOptions(isAdmin(req.user)));
-  sendSuccess(res, 200, 'Resource approved successfully', { resource });
+  sendSuccess(
+    res,
+    200,
+    notificationsCreated
+      ? 'Resource approved successfully'
+      : 'Resource approved, but students may not have received notifications. Please notify them manually.',
+    { resource }
+  );
 });
 
 // PATCH /api/resources/:id/reject (teacher or admin)
@@ -292,6 +322,7 @@ const downloadResource = asyncHandler(async (req, res) => {
 module.exports = {
   uploadResource,
   getResources,
+  getResourceUploaders,
   getMyResources,
   getPendingResources,
   approveResource,

@@ -4,6 +4,8 @@ const asyncHandler = require('../utils/asyncHandler');
 const generateToken = require('../utils/generateToken');
 const { sendSuccess } = require('../utils/apiResponse');
 const { isValidEmail, isString } = require('../utils/validators');
+const { isEmailConfigured, sendPasswordResetEmail } = require('../utils/email');
+const { hashResetToken, createResetCredentials } = require('../utils/passwordReset');
 
 const PUBLIC_ROLES = ['Student', 'Teacher'];
 
@@ -95,4 +97,73 @@ const changePassword = asyncHandler(async (req, res) => {
   sendSuccess(res, 200, 'Password changed successfully', { token: generateToken(user) });
 });
 
-module.exports = { register, login, getMe, changePassword };
+const passwordResetMessage = 'If an active account uses that email, a reset link will be sent. Check spam, or contact the administrator if it does not arrive.';
+
+const requestPasswordReset = asyncHandler(async (req, res) => {
+  const email = isString(req.body.email) ? req.body.email.trim().toLowerCase() : '';
+  if (!isValidEmail(email)) throw new AppError('A valid email is required', 400);
+  if (!isEmailConfigured()) {
+    throw new AppError('Password recovery is not configured yet. Please contact the administrator.', 503);
+  }
+
+  const user = await User.findOne({ email, accountStatus: 'Active' })
+    .select('+passwordResetSentAt');
+  const now = new Date();
+  if (user && (!user.passwordResetSentAt || now - user.passwordResetSentAt >= 60_000)) {
+    const credentials = createResetCredentials(now);
+    user.passwordResetTokenHash = credentials.tokenHash;
+    user.passwordResetExpires = credentials.expiresAt;
+    user.passwordResetSentAt = now;
+    await user.save();
+
+    const baseUrl = (process.env.PUBLIC_APP_URL || 'http://localhost:5173').replace(/\/+$/, '');
+    try {
+      await sendPasswordResetEmail({
+        email: user.email,
+        name: user.name,
+        resetUrl: `${baseUrl}/?resetToken=${encodeURIComponent(credentials.token)}`,
+      });
+    } catch (error) {
+      user.passwordResetTokenHash = undefined;
+      user.passwordResetExpires = undefined;
+      user.passwordResetSentAt = undefined;
+      await user.save();
+      console.error(`Password reset email delivery failed: ${error.message}`);
+    }
+  }
+
+  sendSuccess(res, 200, passwordResetMessage);
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!isString(token) || !/^[a-f0-9]{64}$/i.test(token)) {
+    throw new AppError('A valid password reset token is required', 400);
+  }
+  if (!isString(newPassword) || newPassword.length < 8) {
+    throw new AppError('New password is required (min 8 characters)', 400);
+  }
+  const user = await User.findOne({
+    passwordResetTokenHash: hashResetToken(token),
+    passwordResetExpires: { $gt: new Date() },
+    accountStatus: 'Active',
+  }).select('+passwordResetTokenHash +passwordResetExpires +passwordResetSentAt');
+  if (!user) throw new AppError('This password reset link is invalid or has expired. Request a new one.', 400);
+
+  user.password = newPassword;
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
+  user.passwordResetTokenHash = undefined;
+  user.passwordResetExpires = undefined;
+  user.passwordResetSentAt = undefined;
+  await user.save();
+  sendSuccess(res, 200, 'Password reset successfully. Please sign in with your new password.');
+});
+
+module.exports = {
+  register,
+  login,
+  getMe,
+  changePassword,
+  requestPasswordReset,
+  resetPassword,
+};

@@ -4,11 +4,12 @@ REST API (Node.js, Express, MongoDB) that lets students and teachers upload, sea
 
 ## 1. Technology stack
 
-Node.js 18+, Express 4, MongoDB + Mongoose 8, JWT (`jsonwebtoken`), `bcryptjs`, Multer 2 (local disk storage), `dotenv`, `cors`, `nodemon` (dev). CommonJS, no TypeScript.
+Node.js 20+, Express 4, MongoDB + Mongoose 8, JWT (`jsonwebtoken`), `bcryptjs`, Multer 2, `dotenv`, `cors`, Nodemailer, `nodemon` (dev). CommonJS, no TypeScript.
 
 ## 2. Features
 
 - Student / Teacher registration, login, JWT auth, profile update, change password
+- Single-use password recovery links delivered by configured SMTP
 - Student semester selection at registration; students can access current and earlier semester content but never future semesters. Self-service profile updates cannot advance a student to a later semester; administrators manage advances.
 - Admin accounts only via the seed script (public registration cannot create an Admin)
 - Role-based authorization (Student, Teacher, Admin) and ownership checks
@@ -16,7 +17,9 @@ Node.js 18+, Express 4, MongoDB + Mongoose 8, JWT (`jsonwebtoken`), `bcryptjs`, 
 - Teacher/admin approval workflow: Student and Teacher uploads start as `Pending`; students only see and download `Approved` resources
 - Personal subject-level progress tracking and learning reports with assessment marks
 - Teacher-created MCQ assessments with configurable attempts and automatic scoring
-- Search (title, description, tags, subject name/code), filters (subject, semester, category, file type), sorting, pagination
+- Search (title, description, tags, subject name/code), filters (subject, semester, category, file type, uploader), sorting, pagination
+- In-app notifications for approved uploads and new materials available to a student's semester
+- Upload progress, local PDF preview, and clear size/format validation messages
 - Bookmarks (no duplicates, private per user)
 - Subjects and categories management (admin)
 - User dashboard and admin dashboard statistics
@@ -39,7 +42,7 @@ server/
 
 ## 4. Installation (Windows / VS Code)
 
-1. Install **Node.js 18 or newer** (https://nodejs.org) and **MongoDB** (local Community Server, or a free MongoDB Atlas cluster).
+1. Install **Node.js 20 or newer** (https://nodejs.org) and **MongoDB** (local Community Server, or a free MongoDB Atlas cluster).
 2. Extract the ZIP and open the `server` folder in VS Code.
 3. Open the VS Code terminal in that folder and run:
    ```
@@ -57,9 +60,11 @@ server/
 | `JWT_SECRET` | Long random secret used to sign tokens |
 | `JWT_EXPIRE` | Token lifetime, e.g. `7d` |
 | `CLIENT_URL` | Allowed frontend origin(s), comma separated (Vite: `http://localhost:5173`) |
-| `MAX_FILE_SIZE_MB` | Max upload size (default 20) |
+| `MAX_FILE_SIZE_MB` | Max upload size (default 20 MB) |
 | `FILE_STORAGE_DRIVER` | File storage backend: `local` by default, or `r2` |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | Cloudflare R2 account, bucket, and S3 API credentials (required when `FILE_STORAGE_DRIVER=r2`) |
+| `PUBLIC_APP_URL` | Frontend origin used in password reset links |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | SMTP settings required to deliver password reset emails |
 | `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Used only by the seed script (password min 8 chars) |
 
 Generate a secret with: `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`
@@ -77,6 +82,8 @@ npm run seed
 Creates the admin from `ADMIN_*` env vars (password hashed), the 8 default categories and the semester 1-8 subject catalog. It safely updates the known legacy subject records in place (preserving IDs/references) and synchronizes their resources' semester values. It also creates 40 clearly labeled, synthetic, approved PDF resources: one for each of the first five subjects in every semester. Repeated runs update these same demo records instead of duplicating them. The server runs this seed automatically at startup.
 
 For persistent Cloudflare R2 storage, create a private bucket and an S3 API token restricted to that bucket with object read/write permissions. Set `FILE_STORAGE_DRIVER=r2` and the four `R2_*` variables in the backend environment. Keep the bucket private; downloads continue to use authenticated API routes. Local development defaults to disk storage. Demo PDFs are uploaded to the configured backend during seeding; previously lost user uploads must be uploaded again from their original copies.
+
+Password reset email requires a working SMTP account. Add the provider's host, port, username, password, and sender address to the backend environment; reset links point to `PUBLIC_APP_URL`. Never commit SMTP credentials.
 
 ## 8. Run the server
 
@@ -100,7 +107,7 @@ Invalid/expired tokens return `401`. Deactivated accounts get `403`.
 { "success": true,  "message": "Resource uploaded successfully", "data": { } }
 { "success": false, "message": "Validation failed", "errors": ["Title is required (3-150 characters)"] }
 ```
-Status codes used: 200, 201, 400, 401, 403, 404, 409, 500.
+Status codes used: 200, 201, 400, 401, 403, 404, 409, 500, 503.
 
 ## 11. API endpoints
 
@@ -111,6 +118,8 @@ Legend: 🔓 public · 🔑 any logged-in user · 🛡️ Admin only.
 |---|---|---|---|
 | POST | `/register` | 🔓 | Register as Student (include `semester` 1-8) or Teacher |
 | POST | `/login` | 🔓 | Log in (all roles, including Admin) |
+| POST | `/forgot-password` | 🔓 | Send a single-use, 15-minute reset link when SMTP is configured |
+| POST | `/reset-password` | 🔓 | Reset password with the emailed token |
 | GET | `/me` | 🔑 | Current user |
 | PUT | `/change-password` | 🔑 | Change password |
 
@@ -126,6 +135,7 @@ Legend: 🔓 public · 🔑 any logged-in user · 🛡️ Admin only.
 |---|---|---|---|
 | POST | `/` | Student, Teacher, Admin | Upload (multipart/form-data) |
 | GET | `/` | 🔑 | Approved resources: search, filter, sort, paginate |
+| GET | `/uploaders` | 🔑 | Names of active uploaders represented in the visible approved library |
 | GET | `/my` | 🔑 | Own uploads (`?status=Pending/Approved/Rejected`) |
 | GET | `/pending` | Teacher, Admin | Pending resources for review |
 | PATCH | `/:id/approve` | Teacher, Admin | Approve a pending resource |
@@ -135,8 +145,17 @@ Legend: 🔓 public · 🔑 any logged-in user · 🛡️ Admin only.
 | DELETE | `/:id` | Owner or Admin | Delete resource + file + bookmarks |
 | GET | `/:id/download` | 🔑 | Download approved files; Teachers can inspect pending submissions and Admins can access any status |
 
-**Search/filter query parameters** (all combine with AND): `search` (or `keyword`/`q`), `subject` (id), `category` (id), `semester` (1-8), `fileType` (e.g. `pdf`), `sort` (`newest` default | `oldest` | `semester`), `page` (default 1), `limit` (default 10, max 50). Teacher review queues use `sort=semester` to list semesters in ascending order, newest submissions first within each semester. Student results include their current and earlier semesters only, regardless of query parameters.
-Example: `GET /api/resources?search=binary tree&semester=3&fileType=pdf&sort=oldest&page=1&limit=10`
+**Search/filter query parameters** (all combine with AND): `search` (or `keyword`/`q`), `subject` (id), `category` (id), `semester` (1-8), `fileType` (e.g. `pdf`), `uploader` (user id), `sort` (`newest` default | `oldest` | `semester` | `title`), `page` (default 1), `limit` (default 10, max 50). Teacher review queues use `sort=semester` to list semesters in ascending order, newest submissions first within each semester. Student results include their current and earlier semesters only, regardless of query parameters.
+Example: `GET /api/resources?search=binary%20tree&semester=3&fileType=pdf&sort=oldest&page=1&limit=10`
+
+### `/api/notifications` (all require login)
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/` | Latest notifications and unread count (`?limit=20&unread=true`) |
+| PATCH | `/:id/read` | Mark one of your notifications as read |
+| PATCH | `/read-all` | Mark all your notifications as read |
+
+Approved resources generate an uploader approval alert and new-material alerts for active students whose semester can access that material. Password reset email delivery requires the SMTP variables above; reset tokens are stored hashed, expire after 15 minutes, and invalidate existing sessions when used.
 
 ### `/api/bookmarks` (login required)
 | Method | Path | Purpose |

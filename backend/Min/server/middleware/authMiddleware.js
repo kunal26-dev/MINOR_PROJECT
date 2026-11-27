@@ -17,6 +17,9 @@ const protect = asyncHandler(async (req, res, next) => {
 
   const user = await User.findById(decoded.id);
   if (!user) throw new AppError('The account for this token no longer exists.', 401);
+  if ((decoded.tokenVersion || 0) !== (user.tokenVersion || 0)) {
+    throw new AppError('Your session is no longer valid. Please log in again.', 401);
+  }
   if (user.accountStatus !== 'Active') {
     throw new AppError('Your account has been deactivated. Please contact the administrator.', 403);
   }

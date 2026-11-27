@@ -14,6 +14,12 @@ const {
 } = require('../utils/fileHelpers');
 const { isSemesterAccessible } = require('../utils/semesterSubjects');
 
+const buildAssignmentFilter = (user) => {
+  if (user.role === 'Student') return { semester: { $lte: user.semester } };
+  if (user.role === 'Teacher') return { createdBy: user._id };
+  return {};
+};
+
 const createAssignment = asyncHandler(async (req, res) => {
   const file = req.file;
   if (!file) throw new AppError('A PDF assignment file is required', 400);
@@ -67,15 +73,12 @@ const createAssignment = asyncHandler(async (req, res) => {
 });
 
 const getAssignments = asyncHandler(async (req, res) => {
-  let filter = {};
   if (req.user.role === 'Student') {
     if (!Number.isInteger(req.user.semester) || req.user.semester < 1 || req.user.semester > 8) {
       throw new AppError('Select your semester in your profile first', 400);
     }
-    filter = { semester: { $lte: req.user.semester } };
-  } else if (req.user.role === 'Teacher') {
-    filter = { createdBy: req.user._id };
   }
+  const filter = buildAssignmentFilter(req.user);
   const assignments = await Assignment.find(filter)
     .sort({ deadline: 1, createdAt: -1 })
     .populate('subject', 'subjectName subjectCode semester')
@@ -157,4 +160,12 @@ const downloadSubmission = asyncHandler(async (req, res) => {
   await sendStoredFile(res, submission.storedFileName, submission.originalFileName);
 });
 
-module.exports = { createAssignment, getAssignments, submitAssignment, getSubmissions, downloadAssignment, downloadSubmission };
+module.exports = {
+  createAssignment,
+  getAssignments,
+  submitAssignment,
+  getSubmissions,
+  downloadAssignment,
+  downloadSubmission,
+  buildAssignmentFilter,
+};

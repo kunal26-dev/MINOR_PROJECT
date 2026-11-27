@@ -5,7 +5,7 @@ const AppError = require('../utils/appError');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/apiResponse');
 const { isValidObjectId, isString } = require('../utils/validators');
-const { isSemesterAccessible } = require('../utils/semesterSubjects');
+const { isSemesterAccessible, getMaxAccessibleSemester } = require('../utils/semesterSubjects');
 
 const validateUnits = (input, existingSyllabus) => {
   const errors = [];
@@ -62,9 +62,11 @@ const assertStudentSemester = (user, syllabus) => {
   }
 };
 
+const getSyllabusStudentSemesterLimit = (user) => getMaxAccessibleSemester(user);
+
 const getSyllabi = asyncHandler(async (req, res) => {
   const baseQuery = Syllabus.find().populate('subject', 'subjectName subjectCode semester').populate('createdBy', 'name');
-  const maxStudentSemester = isSemesterAccessible(req.user, req.user.semester) ? req.user.semester : 0;
+  const maxStudentSemester = getSyllabusStudentSemesterLimit(req.user);
   const syllabi = req.user.role === 'Student'
     ? await Syllabus.find()
       .sort({ createdAt: -1 })
@@ -171,4 +173,11 @@ const updateSyllabusProgress = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { getSyllabi, createSyllabus, updateSyllabus, updateSyllabusProgress, validateUnits };
+module.exports = {
+  getSyllabi,
+  createSyllabus,
+  updateSyllabus,
+  updateSyllabusProgress,
+  validateUnits,
+  getSyllabusStudentSemesterLimit,
+};

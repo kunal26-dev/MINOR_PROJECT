@@ -37,6 +37,10 @@ const userSchema = new mongoose.Schema(
     profileImage: { type: String, trim: true, default: '' },
     bio: { type: String, trim: true, maxlength: [300, 'Bio cannot exceed 300 characters'], default: '' },
     accountStatus: { type: String, enum: ACCOUNT_STATUSES, default: 'Active' },
+    tokenVersion: { type: Number, default: 0 },
+    passwordResetTokenHash: { type: String, select: false },
+    passwordResetExpires: { type: Date, select: false },
+    passwordResetSentAt: { type: Date, select: false },
   },
   { timestamps: true }
 );

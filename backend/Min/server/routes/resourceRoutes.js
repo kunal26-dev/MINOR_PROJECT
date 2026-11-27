@@ -2,6 +2,7 @@ const express = require('express');
 const {
   uploadResource,
   getResources,
+  getResourceUploaders,
   getMyResources,
   getPendingResources,
   getResourceById,
@@ -27,6 +28,7 @@ router.route('/')
 
 // Fixed paths must come before "/:id"
 router.get('/my', getMyResources);
+router.get('/uploaders', getResourceUploaders);
 router.get('/pending', authorize('Teacher', 'Admin'), getPendingResources);
 router.patch('/:id/approve', authorize('Teacher', 'Admin'), approveResource);
 router.patch('/:id/reject', authorize('Teacher', 'Admin'), rejectResource);
