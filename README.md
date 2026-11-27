@@ -13,6 +13,10 @@ Teachers select a semester and subject, then publish one unit at a time, with up
 
 `frontend/vercel.json` configures single-page app routes to serve the Vite entry point.
 
+## Deploy the frontend to Render
+
+The Render Blueprint also creates a static site at `https://smart-notes-finder-frontend.onrender.com`. It builds the `frontend` directory and points `VITE_API_URL` at the Render API. Add the static site's exact origin to the API service's comma-separated `CLIENT_URL` environment variable, alongside any other frontend origins, then redeploy the API so browser requests pass CORS checks.
+
 ## Deploy the API to Render
 
 Create a Render Blueprint from this repository's `render.yaml`. It creates a free Node web service from `backend/Min/server`.
@@ -20,7 +24,7 @@ Create a Render Blueprint from this repository's `render.yaml`. It creates a fre
 Set these values in Render's environment configuration; do not commit them:
 
 - `MONGO_URI`: the MongoDB Atlas connection string. Allow Render's outbound connections in the Atlas network access settings.
-- `CLIENT_URL`: the exact Vercel production origin, such as `https://<project>.vercel.app` (no `/api`).
+- `CLIENT_URL`: allowed frontend origins, comma separated, such as `https://<project>.vercel.app,https://smart-notes-finder-frontend.onrender.com` (no `/api`).
 - `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`: values for the administrator created during API startup. Keep the password private and use at least 8 characters.
 
 Render generates `JWT_SECRET`. On every API startup, the service safely creates any missing administrator, categories, and semester subjects. If you need to rerun seeding manually, run `npm run seed` from the backend service shell. Check `GET /api/health` on the Render service to confirm its API and database connection.
