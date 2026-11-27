@@ -19,11 +19,13 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Moon,
   Plus,
   Search,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Sun,
   UploadCloud,
   Users,
   X,
@@ -66,7 +68,22 @@ function getErrorMessage(error) {
   return error?.message || 'Something went wrong. Please try again.';
 }
 
-function AuthScreen({ onAuthenticated, notice }) {
+function ThemeToggle({ theme, onToggleTheme, className = '' }) {
+  const isDark = theme === 'dark';
+  return (
+    <button
+      type="button"
+      className={`icon-button theme-toggle ${className}`}
+      onClick={onToggleTheme}
+      aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+      title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+    >
+      {isDark ? <Sun size={18} /> : <Moon size={18} />}
+    </button>
+  );
+}
+
+function AuthScreen({ onAuthenticated, notice, theme, onToggleTheme }) {
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'Student', semester: '' });
   const [error, setError] = useState('');
@@ -121,6 +138,7 @@ function AuthScreen({ onAuthenticated, notice }) {
       </section>
 
       <section className="auth-panel">
+        <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} className="auth-theme-toggle" />
         <div className="auth-mobile-brand brand">
           <div className="brand-mark"><BookOpen size={20} /></div><span>StudySpace</span>
         </div>
@@ -245,7 +263,7 @@ function Sidebar({ page, setPage, user, onLogout, open, onClose }) {
   );
 }
 
-function Header({ page, user, searchText, setSearchText, onSearch, onMenu, onUpload, onProfile }) {
+function Header({ page, user, searchText, setSearchText, onSearch, onMenu, onUpload, onProfile, theme, onToggleTheme }) {
   const titles = {
     overview: ['Your learning dashboard', 'A little progress adds up. Here’s what’s happening in your space.'],
     discover: ['Discover resources', 'Find the right notes, guides, and study materials for your next session.'],
@@ -264,6 +282,7 @@ function Header({ page, user, searchText, setSearchText, onSearch, onMenu, onUpl
       <button className="mobile-menu icon-button" onClick={onMenu} aria-label="Open navigation"><Menu size={21} /></button>
       <div className="page-heading"><h1>{title}</h1><p>{subtitle}</p></div>
       <div className="topbar-actions">
+        <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} />
         <form className="top-search" onSubmit={onSearch}>
           <Search size={17} />
           <input aria-label="Search resources" value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Search anything..." />
@@ -511,6 +530,7 @@ function AdminSummary({ data }) {
 }
 
 export default function App() {
+  const [theme, setTheme] = useState(() => localStorage.getItem('studyspace_theme') === 'dark' ? 'dark' : 'light');
   const [token, setToken] = useState(() => localStorage.getItem('studyspace_token'));
   const [user, setUser] = useState(null);
   const [page, setPage] = useState('overview');
@@ -537,6 +557,11 @@ export default function App() {
   const savedIds = useMemo(() => new Set(bookmarks.map((item) => item.resource?._id).filter(Boolean)), [bookmarks]);
   const subjects = dashboard?.subjects || [];
   const categories = dashboard?.categories || [];
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('studyspace_theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(searchText.trim()), 300);
@@ -777,7 +802,7 @@ export default function App() {
   if (booting) {
     return <main className="boot-screen"><div className="brand-mark"><BookOpen size={22} /></div><span className="spinner" /><p>Getting your space ready…</p></main>;
   }
-  if (!user || !token) return <AuthScreen onAuthenticated={signIn} notice={error} />;
+  if (!user || !token) return <AuthScreen onAuthenticated={signIn} notice={error} theme={theme} onToggleTheme={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')} />;
 
   const pageIsList = ['discover', 'saved', 'uploads', 'review'].includes(page);
   const resourceHeading = {
@@ -800,6 +825,8 @@ export default function App() {
           onMenu={() => setMobileNavOpen(true)}
           onUpload={() => setUploadOpen(true)}
           onProfile={() => navigateTo('profile')}
+          theme={theme}
+          onToggleTheme={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')}
         />
         <div className="page-content">
           {error && <div className="notice notice-error" role="alert"><span>{error}</span><button onClick={() => setError('')} aria-label="Dismiss error"><X size={16} /></button></div>}

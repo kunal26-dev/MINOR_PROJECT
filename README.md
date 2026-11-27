@@ -2,7 +2,7 @@
 
 Academic resource sharing and study progress app for students and teachers.
 
-Teachers select a semester and subject, then publish one unit at a time, with up to five units and 100 topics per unit. Students see published syllabi for their semester and can check off topics to save their individual progress.
+Teachers select a semester and subject, then publish one unit at a time, with up to five units and 100 topics per unit. Students can access published syllabi for their current and earlier semesters, but not future semesters, and check off topics to save their individual progress. The site supports light and dark themes.
 
 ## Deploy the frontend to Vercel
 

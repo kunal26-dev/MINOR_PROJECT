@@ -51,7 +51,11 @@ const buildResourceFilter = async (query, baseFilter = {}) => {
     if (typeof query.semester !== 'string' || !Number.isInteger(semester) || semester < 1 || semester > 8) {
       throw new AppError('Semester must be a number between 1 and 8', 400);
     }
-    filter.semester = semester;
+    if (filter.semester && typeof filter.semester === 'object') {
+      filter.$and = [...(filter.$and || []), { semester }];
+    } else {
+      filter.semester = semester;
+    }
   }
 
   const fileType = query.fileType || query.format;

@@ -18,8 +18,8 @@ const getUserDashboard = asyncHandler(async (req, res) => {
     approvedFilter.subject = { $in: subjectIds };
     myResourceFilter.subject = { $in: subjectIds };
     if (Number.isInteger(req.user.semester)) {
-      approvedFilter.semester = req.user.semester;
-      myResourceFilter.semester = req.user.semester;
+      approvedFilter.semester = { $lte: req.user.semester };
+      myResourceFilter.semester = { $lte: req.user.semester };
     }
   }
   const bookmarkFilter = subjectIds
@@ -31,7 +31,7 @@ const getUserDashboard = asyncHandler(async (req, res) => {
         $match: {
           'resource.status': 'Approved',
           'resource.subject': { $in: subjectIds },
-          ...(Number.isInteger(req.user.semester) ? { 'resource.semester': req.user.semester } : {}),
+          ...(Number.isInteger(req.user.semester) ? { 'resource.semester': { $lte: req.user.semester } } : {}),
         },
       },
       { $count: 'count' },

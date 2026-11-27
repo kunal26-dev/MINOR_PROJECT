@@ -5,7 +5,7 @@ const AppError = require('../utils/appError');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/apiResponse');
 const { isValidObjectId, isString } = require('../utils/validators');
-const { getStudentSubjectIds } = require('../utils/semesterSubjects');
+const { getStudentSubjectIds, isSemesterAccessible } = require('../utils/semesterSubjects');
 
 const validateTestInput = (body) => {
   const errors = [];
@@ -166,7 +166,8 @@ const submitAttempt = asyncHandler(async (req, res) => {
   if (!test) throw new AppError('Test not found', 404);
   if (test.scheduledAt && test.scheduledAt > new Date()) throw new AppError('This test is scheduled and is not available yet', 409);
   if (req.user.role === 'Student') {
-    if (!Number.isInteger(req.user.semester) || !(await Subject.exists({ _id: test.subject, semester: req.user.semester }))) {
+    if (!isSemesterAccessible(req.user, req.user.semester) ||
+      !(await Subject.exists({ _id: test.subject, semester: { $lte: req.user.semester } }))) {
       throw new AppError('Test not found', 404);
     }
   }

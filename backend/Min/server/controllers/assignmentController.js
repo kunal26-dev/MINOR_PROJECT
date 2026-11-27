@@ -7,6 +7,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/apiResponse');
 const { isValidObjectId, isString } = require('../utils/validators');
 const { resolveUploadPath, fileExists, deleteStoredFile } = require('../utils/fileHelpers');
+const { isSemesterAccessible } = require('../utils/semesterSubjects');
 
 const sendFileDownload = async (res, storedName, originalName) => {
   const fullPath = resolveUploadPath(storedName);
@@ -59,8 +60,10 @@ const createAssignment = asyncHandler(async (req, res) => {
 const getAssignments = asyncHandler(async (req, res) => {
   let filter = {};
   if (req.user.role === 'Student') {
-    if (!Number.isInteger(req.user.semester)) throw new AppError('Select your semester in your profile first', 400);
-    filter = { semester: req.user.semester };
+    if (!Number.isInteger(req.user.semester) || req.user.semester < 1 || req.user.semester > 8) {
+      throw new AppError('Select your semester in your profile first', 400);
+    }
+    filter = { semester: { $lte: req.user.semester } };
   } else if (req.user.role === 'Teacher') {
     filter = { createdBy: req.user._id };
   }
@@ -77,7 +80,7 @@ const submitAssignment = asyncHandler(async (req, res) => {
   try {
     const assignment = await Assignment.findById(req.params.id).populate('subject', 'semester subjectName');
     if (!assignment) throw new AppError('Assignment not found', 404);
-    if (assignment.semester !== req.user.semester) throw new AppError('Assignment not found', 404);
+    if (!isSemesterAccessible(req.user, assignment.semester)) throw new AppError('Assignment not found', 404);
     if (assignment.deadline <= new Date()) throw new AppError('The assignment deadline has passed', 409);
 
     const previousSubmission = await AssignmentSubmission.findOne({
@@ -115,7 +118,7 @@ const getSubmissions = asyncHandler(async (req, res) => {
 const downloadAssignment = asyncHandler(async (req, res) => {
   const assignment = await Assignment.findById(req.params.id);
   if (!assignment) throw new AppError('Assignment not found', 404);
-  if (req.user.role === 'Student' && (assignment.semester !== req.user.semester)) throw new AppError('Assignment not found', 404);
+  if (!isSemesterAccessible(req.user, assignment.semester)) throw new AppError('Assignment not found', 404);
   if (req.user.role === 'Teacher' && String(assignment.createdBy) !== String(req.user._id)) throw new AppError('Assignment not found', 404);
   await sendFileDownload(res, assignment.storedFileName, assignment.originalFileName);
 });

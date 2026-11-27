@@ -5,6 +5,7 @@ const AppError = require('../utils/appError');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/apiResponse');
 const { isValidObjectId, isString } = require('../utils/validators');
+const { isSemesterAccessible } = require('../utils/semesterSubjects');
 
 const validateUnits = (input, existingSyllabus) => {
   const errors = [];
@@ -56,17 +57,18 @@ const validateUnits = (input, existingSyllabus) => {
 };
 
 const assertStudentSemester = (user, syllabus) => {
-  if (user.role === 'Student' && syllabus.subject.semester !== user.semester) {
+  if (!isSemesterAccessible(user, syllabus.subject.semester)) {
     throw new AppError('Syllabus not found', 404);
   }
 };
 
 const getSyllabi = asyncHandler(async (req, res) => {
   const baseQuery = Syllabus.find().populate('subject', 'subjectName subjectCode semester').populate('createdBy', 'name');
+  const maxStudentSemester = isSemesterAccessible(req.user, req.user.semester) ? req.user.semester : 0;
   const syllabi = req.user.role === 'Student'
     ? await Syllabus.find()
       .sort({ createdAt: -1 })
-      .populate({ path: 'subject', select: 'subjectName subjectCode semester', match: { semester: req.user.semester } })
+      .populate({ path: 'subject', select: 'subjectName subjectCode semester', match: { semester: { $lte: maxStudentSemester } } })
       .populate('createdBy', 'name')
     : await baseQuery.sort({ createdAt: -1 });
   const visibleSyllabi = syllabi.filter((syllabus) => syllabus.subject);

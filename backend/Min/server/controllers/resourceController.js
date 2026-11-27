@@ -13,7 +13,7 @@ const {
   getExtension,
 } = require('../utils/fileHelpers');
 const { populateOptions, parseStatus, findResources } = require('../utils/resourceQuery');
-const { getStudentSubjectIds } = require('../utils/semesterSubjects');
+const { getStudentSubjectIds, isSemesterAccessible } = require('../utils/semesterSubjects');
 const path = require('path');
 
 const isAdmin = (user) => user.role === 'Admin';
@@ -22,10 +22,8 @@ const isOwner = (user, resource) => String(resource.uploadedBy._id || resource.u
 
 // Approved resources are visible to everyone logged in; teachers can inspect pending submissions.
 const isInStudentSemester = (user, resource) =>
-  user.role !== 'Student' ||
-  (Number.isInteger(user.semester) &&
-    resource.subject?.semester === user.semester &&
-    resource.semester === user.semester);
+  isSemesterAccessible(user, resource.subject?.semester) &&
+  isSemesterAccessible(user, resource.semester);
 
 const canView = (user, resource) =>
   (isInStudentSemester(user, resource) && (resource.status === 'Approved' || isOwner(user, resource))) ||
@@ -167,7 +165,7 @@ const getResources = asyncHandler(async (req, res) => {
   const baseFilter = { status: 'Approved' };
   if (subjectIds) {
     baseFilter.subject = { $in: subjectIds };
-    if (Number.isInteger(req.user.semester)) baseFilter.semester = req.user.semester;
+    if (Number.isInteger(req.user.semester)) baseFilter.semester = { $lte: req.user.semester };
   }
   const data = await findResources(req.query, baseFilter, false);
   sendSuccess(res, 200, 'Resources retrieved successfully', data);
@@ -179,7 +177,7 @@ const getMyResources = asyncHandler(async (req, res) => {
   const subjectIds = await getStudentSubjectIds(req.user);
   if (subjectIds) {
     base.subject = { $in: subjectIds };
-    if (Number.isInteger(req.user.semester)) base.semester = req.user.semester;
+    if (Number.isInteger(req.user.semester)) base.semester = { $lte: req.user.semester };
   }
   const status = parseStatus(req.query.status);
   if (status) base.status = status;

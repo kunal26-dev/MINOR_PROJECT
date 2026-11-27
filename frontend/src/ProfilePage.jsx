@@ -25,6 +25,7 @@ export default function ProfilePage({ token, user, onUserUpdate, onLogout, onUna
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const maxSemester = Number.isInteger(user.semester) ? user.semester : 8;
 
   function showError(requestError) {
     if (requestError.status === 401) {
@@ -170,8 +171,9 @@ export default function ProfilePage({ token, user, onUserUpdate, onLogout, onUna
             <label>Semester
               <select required value={profileForm.semester} onChange={(event) => setProfileForm((current) => ({ ...current, semester: event.target.value }))}>
                 <option value="">Select your semester</option>
-                {Array.from({ length: 8 }, (_, index) => <option key={index + 1} value={index + 1}>Semester {index + 1}</option>)}
+                {Array.from({ length: maxSemester }, (_, index) => <option key={index + 1} value={index + 1}>Semester {index + 1}</option>)}
               </select>
+              <small className="field-hint">You can choose your current or an earlier semester. Ask an administrator to advance your semester.</small>
             </label>
           )}
           <label className="profile-bio-field">About you<textarea maxLength="300" rows="3" value={profileForm.bio} onChange={(event) => setProfileForm((current) => ({ ...current, bio: event.target.value }))} placeholder="Share a little about your learning goals." /></label>

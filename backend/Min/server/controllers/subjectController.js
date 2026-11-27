@@ -6,7 +6,7 @@ const AppError = require('../utils/appError');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/apiResponse');
 const { isString, escapeRegex } = require('../utils/validators');
-const { getStudentSubjectIds } = require('../utils/semesterSubjects');
+const { getStudentSubjectIds, isSemesterAccessible } = require('../utils/semesterSubjects');
 
 const validateSubject = (body, partial = false) => {
   const errors = [];
@@ -70,7 +70,7 @@ const getSubjects = asyncHandler(async (req, res) => {
 const getSubjectById = asyncHandler(async (req, res) => {
   const subject = await Subject.findById(req.params.id);
   if (!subject) throw new AppError('Subject not found', 404);
-  if (req.user.role === 'Student' && subject.semester !== req.user.semester) {
+  if (!isSemesterAccessible(req.user, subject.semester)) {
     throw new AppError('Subject not found', 404);
   }
   sendSuccess(res, 200, 'Subject retrieved successfully', { subject });

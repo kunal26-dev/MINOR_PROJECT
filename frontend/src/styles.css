@@ -578,3 +578,243 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+.theme-toggle { flex: 0 0 auto; border: 1px solid var(--line); }
+.auth-theme-toggle { position: absolute; top: 24px; right: 28px; }
+.field-hint { color: var(--muted); font-size: 9px; font-weight: 400; line-height: 1.5; }
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  color: #e7e9f2;
+  background: #141721;
+  --ink: #e7e9f2;
+  --muted: #a0a5b7;
+  --line: #34394a;
+  --purple-soft: #2b2945;
+  --canvas: #141721;
+  --white: #202431;
+  --shadow: 0 15px 50px rgba(0, 0, 0, .24);
+}
+
+:root[data-theme='dark'] body,
+:root[data-theme='dark'] .app-shell,
+:root[data-theme='dark'] .main-panel,
+:root[data-theme='dark'] .auth-page,
+:root[data-theme='dark'] .auth-panel,
+:root[data-theme='dark'] .boot-screen {
+  color: #e7e9f2;
+  background: #141721;
+}
+
+:root[data-theme='dark'] .sidebar,
+:root[data-theme='dark'] .topbar,
+:root[data-theme='dark'] .profile-button,
+:root[data-theme='dark'] .stat-card,
+:root[data-theme='dark'] .resource-card,
+:root[data-theme='dark'] .subject-chips button,
+:root[data-theme='dark'] .filters-bar,
+:root[data-theme='dark'] .admin-summary,
+:root[data-theme='dark'] .card-panel,
+:root[data-theme='dark'] .progress-edit-form,
+:root[data-theme='dark'] .test-create-form,
+:root[data-theme='dark'] .marks-list,
+:root[data-theme='dark'] .dialog,
+:root[data-theme='dark'] .auth-switch,
+:root[data-theme='dark'] .auth-switch button.selected {
+  border-color: #34394a;
+  background-color: #202431;
+}
+
+:root[data-theme='dark'] .sidebar,
+:root[data-theme='dark'] .topbar,
+:root[data-theme='dark'] .sidebar-profile-row,
+:root[data-theme='dark'] .dialog-header,
+:root[data-theme='dark'] .dialog-footer {
+  border-color: #34394a;
+}
+
+:root[data-theme='dark'] .topbar { background: rgba(32, 36, 49, .94); }
+:root[data-theme='dark'] .sidebar-tip { border-color: #38354f; background: linear-gradient(145deg, #29273e, #202431); }
+:root[data-theme='dark'] .discover-intro { border-color: #37344e; background: linear-gradient(100deg, #232333, #29273e); }
+:root[data-theme='dark'] .auth-switch button.selected { color: #c5c0ff; }
+:root[data-theme='dark'] .top-search,
+:root[data-theme='dark'] .filter-controls select,
+:root[data-theme='dark'] .select-wrap select,
+:root[data-theme='dark'] .profile-edit-form input,
+:root[data-theme='dark'] .profile-edit-form textarea,
+:root[data-theme='dark'] .profile-edit-form select,
+:root[data-theme='dark'] .progress-edit-form input,
+:root[data-theme='dark'] .progress-edit-form textarea,
+:root[data-theme='dark'] .progress-edit-form select,
+:root[data-theme='dark'] .test-create-form input,
+:root[data-theme='dark'] .test-create-form textarea,
+:root[data-theme='dark'] .test-create-form select,
+:root[data-theme='dark'] .upload-form input:not([type=file]),
+:root[data-theme='dark'] .upload-form textarea,
+:root[data-theme='dark'] .upload-form select,
+:root[data-theme='dark'] .auth-form input,
+:root[data-theme='dark'] .auth-form select {
+  color: #e7e9f2;
+  border-color: #3a4052;
+  background: #181c27;
+}
+
+:root[data-theme='dark'] input,
+:root[data-theme='dark'] select,
+:root[data-theme='dark'] textarea {
+  color: #e7e9f2;
+  border-color: #3a4052;
+  background-color: #181c27;
+}
+
+:root[data-theme='dark'] .top-search input,
+:root[data-theme='dark'] .top-search kbd { color: #d3d6e2; background: transparent; }
+:root[data-theme='dark'] .top-search kbd { border-color: #3a4052; }
+:root[data-theme='dark'] .button-outline,
+:root[data-theme='dark'] .auth-switch button { color: #c2c6d5; border-color: #3a4052; background: #252a38; }
+:root[data-theme='dark'] .button-outline:hover { color: #d2ceff; border-color: #625db0; background: #2b2945; }
+:root[data-theme='dark'] .icon-button { color: #b7bdcd; }
+:root[data-theme='dark'] .icon-button:hover { color: #d0ccff; background: #302e49; }
+:root[data-theme='dark'] .file-drop { background: #25243a; }
+:root[data-theme='dark'] .mobile-scrim { background: rgba(0, 0, 0, .58); }
+:root[data-theme='dark'] .modal-backdrop { background: rgba(0, 0, 0, .68); }
+
+:root[data-theme='dark'] .brand,
+:root[data-theme='dark'] .page-heading h1,
+:root[data-theme='dark'] .section-heading h2,
+:root[data-theme='dark'] .discover-intro h2,
+:root[data-theme='dark'] .admin-summary h2,
+:root[data-theme='dark'] .semester-group-heading h3,
+:root[data-theme='dark'] .resource-main h3,
+:root[data-theme='dark'] .subject-chips strong,
+:root[data-theme='dark'] .profile-copy strong,
+:root[data-theme='dark'] .profile-identity h2,
+:root[data-theme='dark'] .progress-stat strong,
+:root[data-theme='dark'] .subject-progress-list h3,
+:root[data-theme='dark'] .subject-progress-row strong,
+:root[data-theme='dark'] .progress-entry h3,
+:root[data-theme='dark'] .dialog-header h2,
+:root[data-theme='dark'] .auth-heading h2,
+:root[data-theme='dark'] .test-card-main h3,
+:root[data-theme='dark'] .syllabus-subject-title h3,
+:root[data-theme='dark'] .syllabus-unit-heading legend,
+:root[data-theme='dark'] .syllabus-unit-static-heading,
+:root[data-theme='dark'] .syllabus-unit summary,
+:root[data-theme='dark'] .marks-row > div strong,
+:root[data-theme='dark'] .test-question-card legend,
+:root[data-theme='dark'] .test-result-card h2,
+:root[data-theme='dark'] .empty-state h3,
+:root[data-theme='dark'] .file-drop strong {
+  color: #e7e9f2;
+}
+
+:root[data-theme='dark'] .page-heading p,
+:root[data-theme='dark'] .workspace-label,
+:root[data-theme='dark'] .sidebar-tip > span,
+:root[data-theme='dark'] .profile-copy span,
+:root[data-theme='dark'] .stat-label,
+:root[data-theme='dark'] .stat-note,
+:root[data-theme='dark'] .semester-group-heading span,
+:root[data-theme='dark'] .resource-description,
+:root[data-theme='dark'] .resource-meta,
+:root[data-theme='dark'] .resource-byline,
+:root[data-theme='dark'] .subject-chips small,
+:root[data-theme='dark'] .muted-copy,
+:root[data-theme='dark'] .discover-intro p,
+:root[data-theme='dark'] .profile-identity p,
+:root[data-theme='dark'] .progress-stat span,
+:root[data-theme='dark'] .progress-stat small,
+:root[data-theme='dark'] .subject-progress-row span,
+:root[data-theme='dark'] .progress-entry > p,
+:root[data-theme='dark'] .dialog-header p,
+:root[data-theme='dark'] .auth-heading p,
+:root[data-theme='dark'] .marks-row span,
+:root[data-theme='dark'] .main-footer,
+:root[data-theme='dark'] .boot-screen {
+  color: #a0a5b7;
+}
+
+:root[data-theme='dark'] .profile-edit-form label,
+:root[data-theme='dark'] .progress-edit-form label,
+:root[data-theme='dark'] .test-create-form > label,
+:root[data-theme='dark'] .test-form-grid label,
+:root[data-theme='dark'] .test-options-editor label,
+:root[data-theme='dark'] .question-editor > label,
+:root[data-theme='dark'] .upload-form label,
+:root[data-theme='dark'] .auth-form > label,
+:root[data-theme='dark'] .password-label label,
+:root[data-theme='dark'] .filter-title,
+:root[data-theme='dark'] .admin-summary-stats strong {
+  color: #c9cddd;
+}
+
+:root[data-theme='dark'] .nav-link { color: #a0a5b7; }
+:root[data-theme='dark'] .nav-link:hover { color: #e7e9f2; background: #292e3c; }
+:root[data-theme='dark'] .nav-link.active { color: #c5c0ff; background: #302e49; }
+:root[data-theme='dark'] .avatar,
+:root[data-theme='dark'] .top-avatar,
+:root[data-theme='dark'] .mini-avatar { color: #c5c0ff; border-color: #34394a; background: #302e49; }
+:root[data-theme='dark'] .resource-tags span { color: #b3b8c8; background: #2a2f3d; }
+:root[data-theme='dark'] .progress-track { background: #303444; }
+:root[data-theme='dark'] .subject-progress-list h3 svg { color: #aaa4ff; }
+:root[data-theme='dark'] .auth-switch button { color: #a0a5b7; }
+:root[data-theme='dark'] .auth-form input::placeholder,
+:root[data-theme='dark'] .upload-form input::placeholder,
+:root[data-theme='dark'] .upload-form textarea::placeholder { color: #777e91; }
+:root[data-theme='dark'] .file-drop strong { color: #d3d6e2; }
+:root[data-theme='dark'] .file-drop span { color: #a0a5b7; }
+:root[data-theme='dark'] .dialog-header,
+:root[data-theme='dark'] .dialog-footer { border-color: #34394a; }
+:root[data-theme='dark'] .auth-page { background: #141721; }
+:root[data-theme='dark'] .auth-panel { background: #191d28; }
+:root[data-theme='dark'] .auth-switch { background: #252a38; }
+:root[data-theme='dark'] .auth-footer { color: #858b9e; }
+:root[data-theme='dark'] .sidebar-tip strong { color: #e7e9f2; }
+:root[data-theme='dark'] .text-button { color: #aaa4ff; }
+:root[data-theme='dark'] .text-button:hover { color: #d0ccff; }
+:root[data-theme='dark'] .test-card-main p,
+:root[data-theme='dark'] .test-card-main > small,
+:root[data-theme='dark'] .syllabus-subject-title small,
+:root[data-theme='dark'] .syllabus-progress-summary span,
+:root[data-theme='dark'] .syllabus-overview > div:first-child > span:last-child,
+:root[data-theme='dark'] .syllabus-subject-progress,
+:root[data-theme='dark'] .syllabus-subject-progress small,
+:root[data-theme='dark'] .syllabus-unit summary small,
+:root[data-theme='dark'] .test-question-card legend span,
+:root[data-theme='dark'] .question-count,
+:root[data-theme='dark'] .test-result-card p,
+:root[data-theme='dark'] .empty-state p,
+:root[data-theme='dark'] .pagination,
+:root[data-theme='dark'] .pagination-total {
+  color: #a0a5b7;
+}
+:root[data-theme='dark'] .syllabus-unit,
+:root[data-theme='dark'] .test-option,
+:root[data-theme='dark'] .answer-explanation,
+:root[data-theme='dark'] .pagination button,
+:root[data-theme='dark'] .toast,
+:root[data-theme='dark'] .resource-skeleton {
+  color: #d3d6e2;
+  border-color: #34394a;
+  background: #202431;
+}
+:root[data-theme='dark'] .test-question-card > p,
+:root[data-theme='dark'] .syllabus-topic-row,
+:root[data-theme='dark'] .syllabus-unit summary,
+:root[data-theme='dark'] .marks-row > strong {
+  color: #c9cddd;
+}
+:root[data-theme='dark'] .test-option.selected { color: #d2ceff; border-color: #625db0; background: #302e49; }
+:root[data-theme='dark'] .test-result-card h2 { color: #e7e9f2; }
+:root[data-theme='dark'] .syllabus-subject-progress,
+:root[data-theme='dark'] .syllabus-topic-row,
+:root[data-theme='dark'] .marks-row { border-color: #34394a; }
+:root[data-theme='dark'] .empty-state { border-color: #3a4052; background: rgba(32, 36, 49, .62); }
+:root[data-theme='dark'] .empty-icon,
+:root[data-theme='dark'] .syllabus-subject-icon { color: #c5c0ff; background: #302e49; }
+:root[data-theme='dark'] .resource-skeleton > span,
+:root[data-theme='dark'] .resource-skeleton i { background: #303444; }
+:root[data-theme='dark'] .assignment-submit input::file-selector-button { color: #c2c6d5; border-color: #3a4052; background: #252a38; }
+:root[data-theme='dark'] .theme-toggle { color: #c5c0ff; border-color: #3a4052; background: #252a38; }
+:root[data-theme='dark'] .toast { color: #d3d6e2; }
+:root[data-theme='dark'] .toast button { color: #a0a5b7; }

@@ -6,7 +6,7 @@ const AppError = require('../utils/appError');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/apiResponse');
 const { isValidObjectId, isString } = require('../utils/validators');
-const { getStudentSubjectIds } = require('../utils/semesterSubjects');
+const { getStudentSubjectIds, isSemesterAccessible } = require('../utils/semesterSubjects');
 
 const validateProgressInput = (body, partial = false) => {
   const errors = [];
@@ -39,8 +39,8 @@ const assertSubjectExists = async (subjectId, user) => {
   if (!subjectId) return;
   const subject = await Subject.findById(subjectId).select('semester');
   if (!subject) throw new AppError('Subject not found', 400);
-  if (user.role === 'Student' && subject.semester !== user.semester) {
-    throw new AppError('You can only track progress for your current semester', 403);
+  if (!isSemesterAccessible(user, subject.semester)) {
+    throw new AppError('You can only track progress for your current or earlier semesters', 403);
   }
 };
 

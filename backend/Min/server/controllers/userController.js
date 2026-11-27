@@ -39,6 +39,8 @@ const applyProfileUpdates = async (user, body) => {
     if (user.role !== 'Student') errors.push('Only students can update a semester');
     else if (!Number.isInteger(semester) || semester < 1 || semester > 8) {
       errors.push('Semester must be a whole number between 1 and 8');
+    } else if (Number.isInteger(user.semester) && semester > user.semester) {
+      errors.push('Students cannot move themselves to a later semester');
     } else user.semester = semester;
   }
 

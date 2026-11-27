@@ -9,7 +9,7 @@ Node.js 18+, Express 4, MongoDB + Mongoose 8, JWT (`jsonwebtoken`), `bcryptjs`, 
 ## 2. Features
 
 - Student / Teacher registration, login, JWT auth, profile update, change password
-- Student semester selection at registration and profile update; subject, resource, bookmark, progress and test access is restricted to that semester
+- Student semester selection at registration; students can access current and earlier semester content but never future semesters. Self-service profile updates cannot advance a student to a later semester; administrators manage advances.
 - Admin accounts only via the seed script (public registration cannot create an Admin)
 - Role-based authorization (Student, Teacher, Admin) and ownership checks
 - Upload PDF / DOC / DOCX / PPT / PPTX / XLS / XLSX / TXT / CSV / ZIP with extension + MIME + size validation
@@ -131,7 +131,7 @@ Legend: 🔓 public · 🔑 any logged-in user · 🛡️ Admin only.
 | DELETE | `/:id` | Owner or Admin | Delete resource + file + bookmarks |
 | GET | `/:id/download` | 🔑 | Download approved files; Teachers can inspect pending submissions and Admins can access any status |
 
-**Search/filter query parameters** (all combine with AND): `search` (or `keyword`/`q`), `subject` (id), `category` (id), `semester` (1-8), `fileType` (e.g. `pdf`), `sort` (`newest` default | `oldest` | `semester`), `page` (default 1), `limit` (default 10, max 50). Teacher review queues use `sort=semester` to list semesters in ascending order, newest submissions first within each semester. Student results are always scoped to the student's selected semester, regardless of query parameters.
+**Search/filter query parameters** (all combine with AND): `search` (or `keyword`/`q`), `subject` (id), `category` (id), `semester` (1-8), `fileType` (e.g. `pdf`), `sort` (`newest` default | `oldest` | `semester`), `page` (default 1), `limit` (default 10, max 50). Teacher review queues use `sort=semester` to list semesters in ascending order, newest submissions first within each semester. Student results include their current and earlier semesters only, regardless of query parameters.
 Example: `GET /api/resources?search=binary tree&semester=3&fileType=pdf&sort=oldest&page=1&limit=10`
 
 ### `/api/bookmarks` (login required)
@@ -144,7 +144,7 @@ Example: `GET /api/resources?search=binary tree&semester=3&fileType=pdf&sort=old
 ### `/api/subjects` and `/api/categories`
 | Method | Path | Access | Purpose |
 |---|---|---|---|
-| GET | `/api/subjects`, `/api/subjects/:id` | 🔑 | Students see only subjects in their selected semester |
+| GET | `/api/subjects`, `/api/subjects/:id` | 🔑 | Students see subjects in their current and earlier semesters |
 | POST | `/api/subjects` | 🛡️ | Create a subject with `subjectName`, `subjectCode`, `semester` (1-8), and optional `description` |
 | PUT / PATCH | `/api/subjects/:id` | 🛡️ | Update subject details |
 | DELETE | `/api/subjects/:id` | 🛡️ | Delete if no resources, progress entries or tests use it |
@@ -168,7 +168,7 @@ Example: `GET /api/resources?search=binary tree&semester=3&fileType=pdf&sort=old
 ### `/api/tests`
 | Method | Path | Access | Purpose |
 |---|---|---|---|
-| GET | `/` | 🔑 | Published MCQ tests for the student's semester; future tests are listed without questions until available |
+| GET | `/` | 🔑 | Published MCQ tests for the student's current and earlier semesters; future-scheduled tests are listed without questions until available |
 | POST | `/` | Teacher | Create and publish a test with questions, answer keys, marks and attempt limit |
 | GET | `/my-attempts` | Student | List personal test marks |
 | POST | `/:id/attempts` | Student | Submit answers; server scores automatically and returns explanations |
@@ -192,7 +192,7 @@ Example: `GET /api/resources?search=binary tree&semester=3&fileType=pdf&sort=old
 | DELETE | `/resources/:id` | Remove a resource |
 
 **Business rules worth knowing**
-- Student registration requires a semester from 1 to 8. The dashboard returns only that semester's subjects and approved resources; API checks also prevent cross-semester resource, progress, bookmark and test access.
+- Student registration requires a semester from 1 to 8. The dashboard and API expose content for that semester and earlier ones, and block access to all later semesters across subjects, resources, assignments, syllabi, bookmarks, progress and tests.
 - Uploads must use a subject and semester that match. Student uploads are limited to the student's current semester. Uploads by Students/Teachers start as `Pending`; Admin uploads are auto-approved. Teachers can approve or reject pending submissions, but cannot review their own uploads.
 - Teachers create MCQ tests with 1-20 attempts per student; scores and correct answers are calculated on the server after submission.
 - Progress entries and test marks are private to the student; only the teacher who created a test can view its marks.

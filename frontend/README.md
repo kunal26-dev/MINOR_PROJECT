@@ -32,6 +32,8 @@ npm run preview
 ## Included
 
 - Sign-in and Student/Teacher registration, with persistent JWT sessions
+- Persistent light and dark theme toggle
+- Student content access for the current and earlier semesters only
 - Resource discovery with keyword search, subject/category/semester/file filters, and pagination
 - Dashboard, editable profile, personal uploads, authenticated downloads, and multipart uploads
 - Subject-level progress tracking, progress reports, test history, and marks

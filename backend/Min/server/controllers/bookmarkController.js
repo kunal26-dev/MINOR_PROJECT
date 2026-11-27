@@ -12,7 +12,7 @@ const addBookmark = asyncHandler(async (req, res) => {
   const filter = { _id: req.params.resourceId, status: 'Approved' };
   if (subjectIds) {
     filter.subject = { $in: subjectIds };
-    if (Number.isInteger(req.user.semester)) filter.semester = req.user.semester;
+    if (Number.isInteger(req.user.semester)) filter.semester = { $lte: req.user.semester };
   }
   const resource = await Resource.findOne(filter);
   if (!resource) throw new AppError('Resource not found', 404);
@@ -39,7 +39,7 @@ const getBookmarks = asyncHandler(async (req, res) => {
   const resourceFilter = { status: 'Approved' };
   if (subjectIds) {
     resourceFilter.subject = { $in: subjectIds };
-    if (Number.isInteger(req.user.semester)) resourceFilter.semester = req.user.semester;
+    if (Number.isInteger(req.user.semester)) resourceFilter.semester = { $lte: req.user.semester };
   }
   const bookmarks = await Bookmark.find({ user: req.user._id })
     .sort({ createdAt: -1 })
