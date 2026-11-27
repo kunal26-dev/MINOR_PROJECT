@@ -20,6 +20,16 @@ services:
         sync: false
       - key: MAX_FILE_SIZE_MB
         value: 20
+      - key: FILE_STORAGE_DRIVER
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
       - key: ADMIN_NAME
         sync: false
       - key: ADMIN_EMAIL

@@ -1,14 +1,13 @@
 // Usage: npm run seed
 // Safe to run repeatedly: known legacy subjects are updated in place, preserving their IDs.
 require('dotenv').config();
-const fs = require('fs');
 const mongoose = require('mongoose');
 const connectDB = require('../config/db');
 const User = require('../models/User');
 const Category = require('../models/Category');
 const Subject = require('../models/Subject');
 const Resource = require('../models/Resource');
-const { ensureUploadDir, resolveUploadPath, deleteStoredFile } = require('../utils/fileHelpers');
+const { storeStoredFile, deleteStoredFile } = require('../utils/fileHelpers');
 
 const DEFAULT_CATEGORIES = [
   { categoryName: 'Notes', description: 'Lecture notes and handwritten notes' },
@@ -276,7 +275,6 @@ const seedDemoResources = async () => {
 
   const category = await Category.findOne({ categoryName: 'Study Materials' });
   if (!category) throw new Error('Demo resources require the Study Materials category');
-  ensureUploadDir();
 
   for (const [index, subject] of DEMO_SUBJECTS.entries()) {
     const sequence = String(index + 1).padStart(2, '0');
@@ -287,7 +285,7 @@ const seedDemoResources = async () => {
     if (!subjectRecord) throw new Error(`Demo subject is missing: ${subject.subjectCode}`);
     const resource = await Resource.findOne({ tags: marker });
     const pdf = createDemoPdf(subject, index + 1);
-    await fs.promises.writeFile(resolveUploadPath(storedFileName), pdf);
+    await storeStoredFile(storedFileName, pdf, 'application/pdf');
 
     const values = {
       title: `Demo: ${subject.subjectName} sample notes`,

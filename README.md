@@ -26,9 +26,16 @@ Set these values in Render's environment configuration; do not commit them:
 - `MONGO_URI`: the MongoDB Atlas connection string. Allow Render's outbound connections in the Atlas network access settings.
 - `CLIENT_URL`: allowed frontend origins, comma separated, such as `https://<project>.vercel.app,https://smart-notes-finder-frontend.onrender.com` (no `/api`).
 - `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`: values for the administrator created during API startup. Keep the password private and use at least 8 characters.
+- `FILE_STORAGE_DRIVER=r2`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_BUCKET_NAME`: configure persistent Cloudflare R2 file storage as described below.
 
 Render generates `JWT_SECRET`. On every API startup, the service safely creates any missing administrator, categories, and semester subjects. If you need to rerun seeding manually, run `npm run seed` from the backend service shell. Check `GET /api/health` on the Render service to confirm its API and database connection.
 
+### Persistent uploads with Cloudflare R2
+
+Create a private R2 bucket and an S3 API token scoped to that bucket with object read and write permissions. In the Render API service's Environment settings, set `FILE_STORAGE_DRIVER` to `r2` and add the account ID, access key ID, secret access key, and bucket name using the `R2_*` variables above. Never commit or share the access keys. After saving the values, redeploy the API; demo PDFs are recreated in R2 at startup.
+
+Local development continues to use `backend/Min/server/uploads` unless `FILE_STORAGE_DRIVER=r2` is configured. Files already lost from Render's temporary disk are not copied automatically; re-upload original user files after R2 is enabled.
+
 ## Free-tier limitations
 
-The free Render service uses an ephemeral filesystem and spins down when idle. This app stores uploaded files on local disk, so uploaded files can be lost when the service sleeps, restarts, or redeploys. The free instance can also take about a minute to wake after inactivity. This setup is for a demo, not reliable production file storage.
+The free Render API service spins down when idle and can take about a minute to wake after inactivity. Configure Cloudflare R2 as above to keep uploaded files across sleeps and redeploys.

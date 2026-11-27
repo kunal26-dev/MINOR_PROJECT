@@ -7,10 +7,11 @@ const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/apiResponse');
 const { isValidObjectId, isString, parseTags } = require('../utils/validators');
 const {
-  resolveUploadPath,
-  fileExists,
+  storeStoredFile,
+  sendStoredFile,
   deleteStoredFile,
   getExtension,
+  generateStoredName,
 } = require('../utils/fileHelpers');
 const { populateOptions, parseStatus, findResources } = require('../utils/resourceQuery');
 const { getStudentSubjectIds, isSemesterAccessible } = require('../utils/semesterSubjects');
@@ -124,23 +125,29 @@ const uploadResource = asyncHandler(async (req, res) => {
     throw new AppError('A file is required. Send multipart/form-data with the file in the "file" field.', 400);
   }
 
+  const storedFileName = generateStoredName(file.originalname);
+  let storageAttempted = false;
+  let resourceCreated = false;
   try {
     const { errors, values } = validateResourceInput(req.body, false);
     if (errors.length) throw new AppError('Validation failed', 400, errors);
     await assertSubjectAndCategoryExist(values, req.user);
+    storageAttempted = true;
+    await storeStoredFile(storedFileName, file.buffer, file.mimetype);
 
     const resource = await Resource.create({
       ...values,
       tags: values.tags || [],
       originalFileName: path.basename(file.originalname),
-      storedFileName: file.filename,
-      filePath: `uploads/${file.filename}`,
+      storedFileName,
+      filePath: `uploads/${storedFileName}`,
       fileType: getExtension(file.originalname),
       fileSize: file.size,
       uploadedBy: req.user._id,
       // Admin uploads are trusted; everything else waits for review
       status: isAdmin(req.user) ? 'Approved' : 'Pending',
     });
+    resourceCreated = true;
 
     await resource.populate(populateOptions(isAdmin(req.user)));
 
@@ -153,8 +160,13 @@ const uploadResource = asyncHandler(async (req, res) => {
       { resource }
     );
   } catch (err) {
-    // Do not leave orphan files when the request fails after the upload
-    await deleteStoredFile(file.filename);
+    if (storageAttempted && !resourceCreated) {
+      try {
+        await deleteStoredFile(storedFileName);
+      } catch (cleanupError) {
+        console.error(`Could not clean up resource file ${storedFileName}: ${cleanupError.message}`);
+      }
+    }
     throw err;
   }
 });
@@ -270,16 +282,11 @@ const deleteResource = asyncHandler(async (req, res) => {
 });
 
 // GET /api/resources/:id/download  (approved; teachers may inspect pending, admins may access any status)
-const downloadResource = asyncHandler(async (req, res, next) => {
+const downloadResource = asyncHandler(async (req, res) => {
   const resource = await Resource.findById(req.params.id).populate('subject', 'semester');
   if (!resource || !canDownload(req.user, resource)) throw new AppError('Resource not found', 404);
 
-  const fullPath = resolveUploadPath(resource.storedFileName); // blocks path traversal
-  if (!(await fileExists(fullPath))) throw new AppError('File not found on the server', 404);
-
-  res.download(fullPath, resource.originalFileName, (err) => {
-    if (err && !res.headersSent) next(err);
-  });
+  await sendStoredFile(res, resource.storedFileName, resource.originalFileName);
 });
 
 module.exports = {

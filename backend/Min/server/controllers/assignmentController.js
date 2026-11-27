@@ -6,20 +6,20 @@ const AppError = require('../utils/appError');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/apiResponse');
 const { isValidObjectId, isString } = require('../utils/validators');
-const { resolveUploadPath, fileExists, deleteStoredFile } = require('../utils/fileHelpers');
+const {
+  storeStoredFile,
+  sendStoredFile,
+  deleteStoredFile,
+  generateStoredName,
+} = require('../utils/fileHelpers');
 const { isSemesterAccessible } = require('../utils/semesterSubjects');
-
-const sendFileDownload = async (res, storedName, originalName) => {
-  const fullPath = resolveUploadPath(storedName);
-  if (!(await fileExists(fullPath))) throw new AppError('The uploaded PDF file is missing', 404);
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="${path.basename(originalName).replace(/"/g, '')}"`);
-  res.download(fullPath, originalName);
-};
 
 const createAssignment = asyncHandler(async (req, res) => {
   const file = req.file;
   if (!file) throw new AppError('A PDF assignment file is required', 400);
+  const storedFileName = generateStoredName(file.originalname);
+  let storageAttempted = false;
+  let assignmentCreated = false;
   try {
     const title = isString(req.body.title) ? req.body.title.trim() : '';
     const description = isString(req.body.description) ? req.body.description.trim() : '';
@@ -36,6 +36,8 @@ const createAssignment = asyncHandler(async (req, res) => {
     const subject = await Subject.findById(req.body.subject);
     if (!subject) throw new AppError('Subject not found', 400);
     if (subject.semester !== semester) throw new AppError('The selected subject does not belong to the chosen semester', 400);
+    storageAttempted = true;
+    await storeStoredFile(storedFileName, file.buffer, file.mimetype);
     const assignment = await Assignment.create({
       title,
       description,
@@ -44,15 +46,22 @@ const createAssignment = asyncHandler(async (req, res) => {
       deadline,
       createdBy: req.user._id,
       originalFileName: path.basename(file.originalname),
-      storedFileName: file.filename,
+      storedFileName,
     });
+    assignmentCreated = true;
     await assignment.populate([
       { path: 'subject', select: 'subjectName subjectCode semester' },
       { path: 'createdBy', select: 'name role' },
     ]);
     sendSuccess(res, 201, 'Assignment published successfully', { assignment });
   } catch (error) {
-    await deleteStoredFile(file.filename);
+    if (storageAttempted && !assignmentCreated) {
+      try {
+        await deleteStoredFile(storedFileName);
+      } catch (cleanupError) {
+        console.error(`Could not clean up assignment file ${storedFileName}: ${cleanupError.message}`);
+      }
+    }
     throw error;
   }
 });
@@ -77,6 +86,9 @@ const getAssignments = asyncHandler(async (req, res) => {
 const submitAssignment = asyncHandler(async (req, res) => {
   const file = req.file;
   if (!file) throw new AppError('A PDF submission file is required', 400);
+  const storedFileName = generateStoredName(file.originalname);
+  let storageAttempted = false;
+  let submissionSaved = false;
   try {
     const assignment = await Assignment.findById(req.params.id).populate('subject', 'semester subjectName');
     if (!assignment) throw new AppError('Assignment not found', 404);
@@ -87,21 +99,34 @@ const submitAssignment = asyncHandler(async (req, res) => {
       assignment: assignment._id,
       student: req.user._id,
     }).select('storedFileName');
+    storageAttempted = true;
+    await storeStoredFile(storedFileName, file.buffer, file.mimetype);
     const submission = await AssignmentSubmission.findOneAndUpdate(
       { assignment: assignment._id, student: req.user._id },
       {
         originalFileName: path.basename(file.originalname),
-        storedFileName: file.filename,
+        storedFileName,
       },
       { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
     );
+    submissionSaved = true;
     await submission.populate('student', 'name email semester');
-    if (previousSubmission?.storedFileName && previousSubmission.storedFileName !== file.filename) {
-      await deleteStoredFile(previousSubmission.storedFileName);
+    if (previousSubmission?.storedFileName && previousSubmission.storedFileName !== storedFileName) {
+      try {
+        await deleteStoredFile(previousSubmission.storedFileName);
+      } catch (cleanupError) {
+        console.error(`Could not remove previous assignment submission file ${previousSubmission.storedFileName}: ${cleanupError.message}`);
+      }
     }
     sendSuccess(res, 200, 'Assignment submitted successfully', { submission });
   } catch (error) {
-    await deleteStoredFile(file.filename);
+    if (storageAttempted && !submissionSaved) {
+      try {
+        await deleteStoredFile(storedFileName);
+      } catch (cleanupError) {
+        console.error(`Could not clean up assignment submission file ${storedFileName}: ${cleanupError.message}`);
+      }
+    }
     throw error;
   }
 });
@@ -120,7 +145,7 @@ const downloadAssignment = asyncHandler(async (req, res) => {
   if (!assignment) throw new AppError('Assignment not found', 404);
   if (!isSemesterAccessible(req.user, assignment.semester)) throw new AppError('Assignment not found', 404);
   if (req.user.role === 'Teacher' && String(assignment.createdBy) !== String(req.user._id)) throw new AppError('Assignment not found', 404);
-  await sendFileDownload(res, assignment.storedFileName, assignment.originalFileName);
+  await sendStoredFile(res, assignment.storedFileName, assignment.originalFileName);
 });
 
 const downloadSubmission = asyncHandler(async (req, res) => {
@@ -129,7 +154,7 @@ const downloadSubmission = asyncHandler(async (req, res) => {
   const ownsAssignment = req.user.role === 'Teacher' && String(submission.assignment.createdBy) === String(req.user._id);
   const ownsSubmission = String(submission.student) === String(req.user._id);
   if (!ownsAssignment && !ownsSubmission) throw new AppError('Submission not found', 404);
-  await sendFileDownload(res, submission.storedFileName, submission.originalFileName);
+  await sendStoredFile(res, submission.storedFileName, submission.originalFileName);
 });
 
 module.exports = { createAssignment, getAssignments, submitAssignment, getSubmissions, downloadAssignment, downloadSubmission };

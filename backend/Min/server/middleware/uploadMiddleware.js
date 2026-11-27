@@ -1,22 +1,8 @@
 const multer = require('multer');
 const AppError = require('../utils/appError');
-const {
-  UPLOAD_DIR,
-  ALLOWED_FILE_TYPES,
-  ensureUploadDir,
-  getExtension,
-  generateStoredName,
-} = require('../utils/fileHelpers');
-
-ensureUploadDir();
+const { ALLOWED_FILE_TYPES, getExtension } = require('../utils/fileHelpers');
 
 const maxSizeMb = Number(process.env.MAX_FILE_SIZE_MB) > 0 ? Number(process.env.MAX_FILE_SIZE_MB) : 20;
-
-// Local disk storage with a unique generated file name
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => cb(null, generateStoredName(file.originalname)),
-});
 
 // Validate both the extension and the MIME type
 const fileFilter = (req, file, cb) => {
@@ -37,18 +23,13 @@ const fileFilter = (req, file, cb) => {
 };
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter,
   limits: { fileSize: maxSizeMb * 1024 * 1024, files: 1 },
 });
 
 // Expects the file in the multipart/form-data field named "file"
 const uploadSingle = upload.single('file');
-
-const pdfStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => cb(null, generateStoredName(file.originalname)),
-});
 
 const pdfFilter = (req, file, cb) => {
   const ext = getExtension(file.originalname);
@@ -59,7 +40,7 @@ const pdfFilter = (req, file, cb) => {
 };
 
 const pdfUpload = multer({
-  storage: pdfStorage,
+  storage: multer.memoryStorage(),
   fileFilter: pdfFilter,
   limits: { fileSize: maxSizeMb * 1024 * 1024, files: 1 },
 });
