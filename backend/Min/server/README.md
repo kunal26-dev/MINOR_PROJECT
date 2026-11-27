@@ -61,8 +61,6 @@ server/
 | `JWT_EXPIRE` | Token lifetime, e.g. `7d` |
 | `CLIENT_URL` | Allowed frontend origin(s), comma separated (Vite: `http://localhost:5173`) |
 | `MAX_FILE_SIZE_MB` | Max upload size (default 20 MB) |
-| `FILE_STORAGE_DRIVER` | File storage backend: `local` by default, or `r2` |
-| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | Cloudflare R2 account, bucket, and S3 API credentials (required when `FILE_STORAGE_DRIVER=r2`) |
 | `PUBLIC_APP_URL` | Frontend origin used in password reset links |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | SMTP settings required to deliver password reset emails |
 | `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Used only by the seed script (password min 8 chars) |
@@ -81,7 +79,7 @@ npm run seed
 ```
 Creates the admin from `ADMIN_*` env vars (password hashed), the 8 default categories and the semester 1-8 subject catalog. It safely updates the known legacy subject records in place (preserving IDs/references) and synchronizes their resources' semester values. It also creates 40 clearly labeled, synthetic, approved PDF resources: one for each of the first five subjects in every semester. Repeated runs update these same demo records instead of duplicating them. The server runs this seed automatically at startup.
 
-For persistent Cloudflare R2 storage, create a private bucket and an S3 API token restricted to that bucket with object read/write permissions. Set `FILE_STORAGE_DRIVER=r2` and the four `R2_*` variables in the backend environment. Keep the bucket private; downloads continue to use authenticated API routes. Local development defaults to disk storage. Demo PDFs are uploaded to the configured backend during seeding; previously lost user uploads must be uploaded again from their original copies.
+Uploads are stored under the backend's local `uploads` directory. On Render's ephemeral filesystem, uploaded files may be lost when the service is redeployed or its instance is replaced.
 
 Password reset email requires a working SMTP account. Add the provider's host, port, username, password, and sender address to the backend environment; reset links point to `PUBLIC_APP_URL`. Never commit SMTP credentials.
 

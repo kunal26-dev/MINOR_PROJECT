@@ -7,7 +7,6 @@ const mongoose = require('mongoose');
 const connectDB = require('./config/db');
 const { seedDatabase } = require('./scripts/seed');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
-const { driver: fileStorageDriver } = require('./utils/fileHelpers');
 
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -77,7 +76,7 @@ const startServer = async () => {
     await connectDB();
     await seedDatabase();
     console.log('Seed data is ready.');
-    console.log(`File storage backend: ${fileStorageDriver}.`);
+    console.log('File storage backend: local.');
   } catch (err) {
     console.error(`Database startup failed: ${err.message}`);
     process.exit(1);
